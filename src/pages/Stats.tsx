@@ -23,7 +23,7 @@ function formatDate(value: string) {
 }
 
 export default function StatsPage() {
-  const { firebaseReady } = useAuth();
+  const { firebaseReady, authError } = useAuth();
   const [draws, setDraws] = useState<Draw[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +32,6 @@ export default function StatsPage() {
   const [importSummary, setImportSummary] = useState<string | null>(null);
 
   const loadDraws = useCallback(async () => {
-    if (!firebaseReady) {
-      setLoading(false);
-      setDraws([]);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -47,7 +42,7 @@ export default function StatsPage() {
     } finally {
       setLoading(false);
     }
-  }, [firebaseReady]);
+  }, []);
 
   useEffect(() => {
     loadDraws();
@@ -100,12 +95,10 @@ export default function StatsPage() {
             />
             <button
               onClick={handleImport}
-              disabled={!firebaseReady || importing}
+              disabled={importing}
               className={cn(
                 'inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-bold uppercase tracking-widest transition-all',
-                firebaseReady
-                  ? 'green-gradient-btn text-white hover:opacity-90 disabled:opacity-60'
-                  : 'bg-surface-dim text-on-surface-variant cursor-not-allowed',
+                'green-gradient-btn text-white hover:opacity-90 disabled:opacity-60',
               )}
             >
               <UploadCloud className="w-4 h-4" />
@@ -125,6 +118,12 @@ export default function StatsPage() {
         {importSummary ? (
           <p className="mt-4 text-sm font-medium text-primary">{importSummary}</p>
         ) : null}
+        {!firebaseReady ? (
+          <p className="mt-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            Firebase indisponivel neste build: importacao e leitura funcionando em modo local no navegador.
+          </p>
+        ) : null}
+        {authError ? <p className="mt-2 text-sm font-medium text-error">{authError}</p> : null}
         {error ? <p className="mt-4 text-sm font-medium text-error">{error}</p> : null}
       </section>
 
@@ -305,4 +304,5 @@ function InsightCard({ icon: Icon, title, subtitle, value, color }: any) {
     </div>
   );
 }
+
 

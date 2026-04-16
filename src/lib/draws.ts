@@ -1,4 +1,4 @@
-import {
+﻿import {
   addDoc,
   collection,
   doc,
@@ -18,6 +18,13 @@ type ImportSummary = {
   updated: number;
   skipped: number;
 };
+
+type ParsedWorkbook = {
+  draws: Draw[];
+  skipped: number;
+};
+
+const LOCAL_DRAWS_KEY = 'megasena.draws';
 
 const HEADER = {
   concurso: 'Concurso',
@@ -105,8 +112,63 @@ function parseRow(row: Record<string, unknown>): Draw | null {
   };
 }
 
+function readLocalDraws(): Draw[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(LOCAL_DRAWS_KEY);
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw) as Draw[];
+    return parsed
+      .map((draw) => ({
+        ...draw,
+        numbers: (draw.numbers || []).map((n) => Number(n)).sort((a, b) => a - b),
+      }))
+      .sort((a, b) => a.concurso - b.concurso);
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalDraws(draws: Draw[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(LOCAL_DRAWS_KEY, JSON.stringify(draws));
+}
+
+function mergeDrawSets(existing: Draw[], incoming: Draw[]) {
+  const merged = new Map(existing.map((item) => [item.id, item]));
+  let created = 0;
+  let updated = 0;
+
+  for (const draw of incoming) {
+    if (merged.has(draw.id)) updated += 1;
+    else created += 1;
+    merged.set(draw.id, draw);
+  }
+
+  return {
+    draws: [...merged.values()].sort((a, b) => a.concurso - b.concurso),
+    created,
+    updated,
+  };
+}
+
+export async function parseDrawsWorkbook(file: File): Promise<ParsedWorkbook> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const firstSheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[firstSheetName];
+  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  const parsedRows = rawRows.map(parseRow);
+  const draws = parsedRows.filter((item): item is Draw => Boolean(item));
+  const skipped = parsedRows.length - draws.length;
+
+  return { draws, skipped };
+}
+
 export async function fetchAllDraws(): Promise<Draw[]> {
-  if (!db) return [];
+  if (!db) return readLocalDraws();
+
   const snapshot = await getDocs(query(collection(db, 'draws'), orderBy('concurso', 'asc')));
   return snapshot.docs.map((item) => {
     const data = item.data() as Draw;
@@ -119,18 +181,19 @@ export async function fetchAllDraws(): Promise<Draw[]> {
 }
 
 export async function importDrawsWorkbook(file: File): Promise<ImportSummary> {
-  if (!db) {
-    throw new Error('Firebase não configurado.');
-  }
+  const { draws, skipped } = await parseDrawsWorkbook(file);
 
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array' });
-  const firstSheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[firstSheetName];
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-  const parsedRows = rawRows.map(parseRow);
-  const draws = parsedRows.filter((item): item is Draw => Boolean(item));
-  const skipped = parsedRows.length - draws.length;
+  if (!db) {
+    const existing = readLocalDraws();
+    const merged = mergeDrawSets(existing, draws);
+    writeLocalDraws(merged.draws);
+    return {
+      processed: draws.length,
+      created: merged.created,
+      updated: merged.updated,
+      skipped,
+    };
+  }
 
   const drawsCollection = collection(db, 'draws');
   const existingSnapshot = await getDocs(drawsCollection);
@@ -170,19 +233,20 @@ export async function importDrawsWorkbook(file: File): Promise<ImportSummary> {
     await currentBatch.commit();
   }
 
-  const summary: ImportSummary = {
+  await addDoc(collection(db, 'imports'), {
+    source: 'xlsx',
+    fileName: file.name,
+    processed: draws.length,
+    created,
+    updated,
+    skipped,
+    createdAt: serverTimestamp(),
+  });
+
+  return {
     processed: draws.length,
     created,
     updated,
     skipped,
   };
-
-  await addDoc(collection(db, 'imports'), {
-    source: 'xlsx',
-    fileName: file.name,
-    ...summary,
-    createdAt: serverTimestamp(),
-  });
-
-  return summary;
 }

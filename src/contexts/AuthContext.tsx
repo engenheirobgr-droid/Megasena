@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -19,6 +19,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   firebaseReady: boolean;
+  authError: string | null;
   signInAnonymous: () => Promise<void>;
   signOutUser: () => Promise<void>;
 };
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth || !isFirebaseConfigured) {
@@ -35,8 +37,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+    let attemptedAnonymousLogin = false;
+
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
       setUser(nextUser);
+
+      if (!nextUser && !attemptedAnonymousLogin) {
+        attemptedAnonymousLogin = true;
+        try {
+          await signInAnonymously(auth);
+          setAuthError(null);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Falha ao autenticar anonimamente.';
+          setAuthError(message);
+        }
+      }
+
       setLoading(false);
     });
 
@@ -45,7 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInAnonymous = useCallback(async () => {
     if (!auth || !isFirebaseConfigured) return;
-    await signInAnonymously(auth);
+    try {
+      await signInAnonymously(auth);
+      setAuthError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao autenticar anonimamente.';
+      setAuthError(message);
+      throw error;
+    }
   }, []);
 
   const signOutUser = useCallback(async () => {
@@ -58,10 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       firebaseReady: isFirebaseConfigured,
+      authError,
       signInAnonymous,
       signOutUser,
     }),
-    [loading, signInAnonymous, signOutUser, user],
+    [authError, loading, signInAnonymous, signOutUser, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
