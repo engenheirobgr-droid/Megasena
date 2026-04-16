@@ -6,6 +6,22 @@ type OriginRange = { name: string; value: number; range: string; height: number 
 type RankItem = { number: number; count: number };
 type ParityBucket = { label: string; count: number; value: number; highlight?: boolean };
 
+type ComboItem = { combo: number[]; count: number };
+type StateItem = { state: string; appearances: number; winnersShare: number };
+
+type RecordItem = { draw: Draw | null; value: number };
+
+type SelectedPairItem = { combo: number[]; count: number };
+
+export type SelectedNumberInsights = {
+  selectedNumbers: number[];
+  matchingAllCount: number;
+  matchingAnyCount: number;
+  topCompanions: RankItem[];
+  topPairsWithSelected: SelectedPairItem[];
+  recentMatchingContests: number[];
+};
+
 export type MegaStats = {
   totalDraws: number;
   latestDraw: Draw | null;
@@ -21,6 +37,21 @@ export type MegaStats = {
   averageSum: number;
   averageRepeatsFromPrevious: number;
   consecutivePairRate: number;
+  topPairs: ComboItem[];
+  topTriples: ComboItem[];
+  topConsecutivePairs: ComboItem[];
+  topStates: StateItem[];
+  highestPrize6: RecordItem;
+  highestEstimatedPrize: RecordItem;
+  highestRevenue: RecordItem;
+  highestAccumulated: RecordItem;
+  yearRange: { min: number | null; max: number | null };
+};
+
+export type StatsFilter = {
+  windowSize: number | null;
+  yearFrom: number | null;
+  yearTo: number | null;
 };
 
 function clampPercent(value: number): number {
@@ -28,14 +59,138 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-function numberLabel(value: number) {
+function parseDrawYear(draw: Draw): number | null {
+  const m = draw.date.match(/^(\d{4})-/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  return Number.isFinite(y) ? y : null;
+}
+
+function getCombinations(values: number[], size: number): number[][] {
+  const result: number[][] = [];
+  const arr = [...values].sort((a, b) => a - b);
+
+  function helper(start: number, current: number[]) {
+    if (current.length === size) {
+      result.push([...current]);
+      return;
+    }
+
+    for (let i = start; i < arr.length; i += 1) {
+      current.push(arr[i]);
+      helper(i + 1, current);
+      current.pop();
+    }
+  }
+
+  helper(0, []);
+  return result;
+}
+
+function sortComboItems(items: ComboItem[]): ComboItem[] {
+  return items.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.combo.join('-').localeCompare(b.combo.join('-'));
+  });
+}
+
+function buildTopCombinations(draws: Draw[], size: number, limit = 10): ComboItem[] {
+  const map = new Map<string, number>();
+
+  for (const draw of draws) {
+    const combos = getCombinations(draw.numbers, size);
+    for (const combo of combos) {
+      const key = combo.join('-');
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+  }
+
+  return sortComboItems(
+    [...map.entries()].map(([key, count]) => ({
+      combo: key.split('-').map(Number),
+      count,
+    })),
+  ).slice(0, limit);
+}
+
+function extractStates(cityUf: string): string[] {
+  const text = (cityUf || '').toUpperCase();
+  const matches = text.match(/\b[A-Z]{2}\b/g) || [];
+  return [...new Set(matches)];
+}
+
+function buildStateRanking(draws: Draw[], limit = 10): StateItem[] {
+  const appearance = new Map<string, number>();
+  const winnersShare = new Map<string, number>();
+
+  for (const draw of draws) {
+    const states = extractStates(draw.cityUf);
+    if (!states.length) continue;
+
+    for (const state of states) {
+      appearance.set(state, (appearance.get(state) || 0) + 1);
+    }
+
+    const share = draw.winners6 > 0 ? draw.winners6 / states.length : 0;
+    for (const state of states) {
+      winnersShare.set(state, (winnersShare.get(state) || 0) + share);
+    }
+  }
+
+  return [...appearance.entries()]
+    .map(([state, appearances]) => ({
+      state,
+      appearances,
+      winnersShare: winnersShare.get(state) || 0,
+    }))
+    .sort((a, b) => {
+      if (b.appearances !== a.appearances) return b.appearances - a.appearances;
+      return b.winnersShare - a.winnersShare;
+    })
+    .slice(0, limit);
+}
+
+function numberToBadge(value: number) {
   return String(value).padStart(2, '0');
+}
+
+function bestBy(draws: Draw[], picker: (draw: Draw) => number): RecordItem {
+  if (!draws.length) return { draw: null, value: 0 };
+  let best = draws[0];
+  let bestValue = picker(best);
+
+  for (let i = 1; i < draws.length; i += 1) {
+    const value = picker(draws[i]);
+    if (value > bestValue) {
+      best = draws[i];
+      bestValue = value;
+    }
+  }
+
+  return { draw: best, value: bestValue };
+}
+
+export function applyStatsFilter(draws: Draw[], filter: StatsFilter): Draw[] {
+  const ordered = [...draws].sort((a, b) => a.concurso - b.concurso);
+  const byYear = ordered.filter((draw) => {
+    const year = parseDrawYear(draw);
+    if (filter.yearFrom && (!year || year < filter.yearFrom)) return false;
+    if (filter.yearTo && (!year || year > filter.yearTo)) return false;
+    return true;
+  });
+
+  if (!filter.windowSize) return byYear;
+  return byYear.slice(-filter.windowSize);
 }
 
 export function buildMegaStats(draws: Draw[]): MegaStats {
   const ordered = [...draws].sort((a, b) => a.concurso - b.concurso);
   const latestDraw = ordered.length ? ordered[ordered.length - 1] : null;
   const totalDraws = ordered.length;
+
+  const years = ordered
+    .map(parseDrawYear)
+    .filter((value): value is number => value !== null);
 
   const frequency = Array.from({ length: 61 }, () => 0);
 
@@ -155,13 +310,19 @@ export function buildMegaStats(draws: Draw[]): MegaStats {
   let repeatSamples = 0;
   let drawsWithConsecutivePair = 0;
 
-  for (let i = 0; i < ordered.length; i += 1) {
-    const current = ordered[i].numbers;
+  const consecutivePairMap = new Map<string, number>();
 
-    const hasConsecutive = current
-      .slice()
-      .sort((a, b) => a - b)
-      .some((value, idx, arr) => idx > 0 && value - arr[idx - 1] === 1);
+  for (let i = 0; i < ordered.length; i += 1) {
+    const current = ordered[i].numbers.slice().sort((a, b) => a - b);
+
+    let hasConsecutive = false;
+    for (let j = 1; j < current.length; j += 1) {
+      if (current[j] - current[j - 1] === 1) {
+        hasConsecutive = true;
+        const key = `${current[j - 1]}-${current[j]}`;
+        consecutivePairMap.set(key, (consecutivePairMap.get(key) || 0) + 1);
+      }
+    }
     if (hasConsecutive) drawsWithConsecutivePair += 1;
 
     if (i > 0) {
@@ -172,8 +333,19 @@ export function buildMegaStats(draws: Draw[]): MegaStats {
     }
   }
 
+  const topConsecutivePairs = sortComboItems(
+    [...consecutivePairMap.entries()].map(([key, count]) => ({
+      combo: key.split('-').map(Number),
+      count,
+    })),
+  ).slice(0, 10);
+
   const averageRepeatsFromPrevious = repeatSamples ? repeatAccumulator / repeatSamples : 0;
   const consecutivePairRate = clampPercent((drawsWithConsecutivePair / Math.max(1, totalDraws)) * 100);
+
+  const topPairs = buildTopCombinations(ordered, 2, 12);
+  const topTriples = buildTopCombinations(ordered, 3, 12);
+  const topStates = buildStateRanking(ordered, 12);
 
   return {
     totalDraws,
@@ -190,9 +362,79 @@ export function buildMegaStats(draws: Draw[]): MegaStats {
     averageSum: totalDraws ? sumAccumulator / totalDraws : 0,
     averageRepeatsFromPrevious,
     consecutivePairRate,
+    topPairs,
+    topTriples,
+    topConsecutivePairs,
+    topStates,
+    highestPrize6: bestBy(ordered, (draw) => draw.prize6 || 0),
+    highestEstimatedPrize: bestBy(ordered, (draw) => draw.estimatedPrize || 0),
+    highestRevenue: bestBy(ordered, (draw) => draw.totalRevenue || 0),
+    highestAccumulated: bestBy(ordered, (draw) => draw.accumulated6 || 0),
+    yearRange: {
+      min: years.length ? Math.min(...years) : null,
+      max: years.length ? Math.max(...years) : null,
+    },
   };
 }
 
+export function analyzeSelectedNumbers(draws: Draw[], selectedNumbers: number[]): SelectedNumberInsights {
+  const selectedSet = new Set(selectedNumbers);
+  const normalized = [...selectedSet].filter((n) => n >= 1 && n <= 60).sort((a, b) => a - b);
+
+  if (!normalized.length) {
+    return {
+      selectedNumbers: [],
+      matchingAllCount: 0,
+      matchingAnyCount: 0,
+      topCompanions: [],
+      topPairsWithSelected: [],
+      recentMatchingContests: [],
+    };
+  }
+
+  const matchingAll = draws.filter((draw) => normalized.every((n) => draw.numbers.includes(n)));
+  const matchingAny = draws.filter((draw) => normalized.some((n) => draw.numbers.includes(n)));
+
+  const companionFreq = Array.from({ length: 61 }, () => 0);
+  for (const draw of matchingAll) {
+    for (const num of draw.numbers) {
+      if (!selectedSet.has(num)) companionFreq[num] += 1;
+    }
+  }
+
+  const topCompanions = Array.from({ length: 60 }, (_, idx) => ({ number: idx + 1, count: companionFreq[idx + 1] }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count || a.number - b.number)
+    .slice(0, 10);
+
+  const pairMap = new Map<string, number>();
+  for (const draw of matchingAny) {
+    const pairs = getCombinations(draw.numbers, 2);
+    for (const pair of pairs) {
+      if (!pair.some((n) => selectedSet.has(n))) continue;
+      const key = pair.join('-');
+      pairMap.set(key, (pairMap.get(key) || 0) + 1);
+    }
+  }
+
+  const topPairsWithSelected = sortComboItems(
+    [...pairMap.entries()].map(([key, count]) => ({ combo: key.split('-').map(Number), count })),
+  ).slice(0, 10);
+
+  return {
+    selectedNumbers: normalized,
+    matchingAllCount: matchingAll.length,
+    matchingAnyCount: matchingAny.length,
+    topCompanions,
+    topPairsWithSelected,
+    recentMatchingContests: matchingAll.slice(-10).reverse().map((draw) => draw.concurso),
+  };
+}
+
+export function findDrawByConcurso(draws: Draw[], concurso: number): Draw | null {
+  return draws.find((draw) => draw.concurso === concurso) || null;
+}
+
 export function formatNumberBadge(value: number) {
-  return numberLabel(value);
+  return numberToBadge(value);
 }
