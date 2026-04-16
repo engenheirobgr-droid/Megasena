@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -188,13 +188,13 @@ export default function App() {
                 className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest bg-green-600 text-white hover:opacity-90 transition-all"
               >
                 <Download className="w-4 h-4" />
-                Instalar app
+                <span className="hidden sm:inline">Instalar app</span>
               </button>
             ) : null}
           </div>
         </header>
 
-        <main className="flex-1 pb-32">
+        <main className="flex-1 pb-32 overflow-x-hidden">
           <Suspense fallback={<PageLoader />}>
             <AnimatePresence mode="wait">
               <motion.div

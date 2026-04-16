@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { motion } from 'motion/react';
 import {
   Award,
@@ -308,14 +308,14 @@ export default function StatsPage() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-4 mt-8 relative z-10">
+        <div className="flex flex-wrap gap-2 md:gap-4 mt-6 md:mt-8 relative z-10">
           {(latest?.numbers || [0, 0, 0, 0, 0, 0]).map((num, idx) => (
             <motion.div
               key={`${num}-${idx}`}
               whileHover={{ scale: 1.08, y: -4 }}
-              className="w-16 h-16 md:w-24 md:h-24 bg-white/15 backdrop-blur-lg border border-white/20 rounded-2xl flex items-center justify-center shadow-xl"
+              className="w-12 h-12 sm:w-16 sm:h-16 md:w-24 md:h-24 bg-white/15 backdrop-blur-lg border border-white/20 rounded-2xl flex items-center justify-center shadow-xl"
             >
-              <span className="font-extrabold text-3xl md:text-4xl text-white">{String(num).padStart(2, '0')}</span>
+              <span className="font-extrabold text-xl sm:text-3xl md:text-4xl text-white">{String(num).padStart(2, '0')}</span>
             </motion.div>
           ))}
         </div>
@@ -329,12 +329,12 @@ export default function StatsPage() {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
+        <div className="lg:col-span-8 bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm">
           <div className="flex justify-between items-center mb-8">
             <h3 className="font-bold text-xl">Volante de Calor</h3>
             <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Frequencia na janela</span>
           </div>
-          <div className="grid grid-cols-10 gap-2 md:gap-3">
+          <div className="grid grid-cols-10 gap-1 sm:gap-2 md:gap-3">
             {stats.heatmap.map((item) => (
               <div
                 key={item.num}
@@ -393,7 +393,7 @@ export default function StatsPage() {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
+        <div className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm">
           <h3 className="font-bold text-xl mb-1">Distribuicao da Soma</h3>
           <p className="text-sm text-on-surface-variant mb-8 font-medium">Frequencia por intervalo da soma das dezenas.</p>
           <div className="space-y-5">
@@ -417,7 +417,7 @@ export default function StatsPage() {
           </div>
         </div>
 
-        <div className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
+        <div className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm">
           <h3 className="font-bold text-xl mb-1">Distribuicao de Paridade</h3>
           <p className="text-sm text-on-surface-variant mb-8 font-medium">Faixas de pares/impares por concurso.</p>
           <div className="space-y-5">
@@ -442,7 +442,7 @@ export default function StatsPage() {
         </div>
       </section>
 
-      <section className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
+      <section className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm">
         <h3 className="font-bold text-xl mb-1">Origem dos Numeros</h3>
         <p className="text-sm text-on-surface-variant mb-10 font-medium">Percentual de saida por faixa numerica.</p>
         <div className="flex items-end justify-between gap-6 h-40 mb-6 px-4">
@@ -483,7 +483,7 @@ export default function StatsPage() {
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        <div className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm space-y-5">
+        <div className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm space-y-5">
           <h3 className="font-bold text-xl">Analise por dezenas escolhidas</h3>
           <p className="text-sm text-on-surface-variant font-medium">
             Digite de 1 a 6 dezenas (ex.: 10 22 33 45) para ver recorrencia e combinacoes com essas dezenas.
@@ -520,22 +520,22 @@ export default function StatsPage() {
           </div>
         </div>
 
-        <div className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm space-y-5">
+        <div className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm space-y-5">
           <h3 className="font-bold text-xl">Consulta detalhada por concurso</h3>
           <p className="text-sm text-on-surface-variant font-medium">
             Informe o numero do concurso para ver todos os campos importados da planilha.
           </p>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <input
               type="number"
               min={1}
               value={contestQuery}
               onChange={(e) => setContestQuery(e.target.value)}
               placeholder="Ex.: 2820"
-              className="flex-1 rounded-xl border border-outline bg-white px-3 py-2 text-sm font-medium"
+              className="flex-1 min-w-0 rounded-xl border border-outline bg-white px-3 py-2 text-sm font-medium"
             />
-            <button className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 bg-primary text-white text-xs font-bold uppercase tracking-widest">
+            <button className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl px-3 md:px-4 py-2 bg-primary text-white text-xs font-bold uppercase tracking-widest">
               <Search className="w-4 h-4" />
               Buscar
             </button>
@@ -549,7 +549,7 @@ export default function StatsPage() {
         </div>
       </section>
 
-      <section className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm space-y-5">
+      <section className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm space-y-5">
         <h3 className="font-bold text-xl">Filtro por numero ou sequencia</h3>
         <p className="text-sm text-on-surface-variant font-medium">
           Digite 1 a 6 dezenas para listar todos os concursos que contem esses numeros.
@@ -666,7 +666,7 @@ function RankingCard({
   const maxValue = Math.max(1, ...items.map((item) => item.count));
 
   return (
-    <div className={cn('bg-surface-container border border-outline rounded-3xl shadow-sm', compact ? 'p-5' : 'p-8')}>
+    <div className={cn('bg-surface-container border border-outline rounded-3xl shadow-sm', compact ? 'p-5' : 'p-5 md:p-8')}>
       <div className="flex items-center justify-between mb-5">
         <h3 className={cn('font-bold', compact ? 'text-base' : 'text-xl')}>{title}</h3>
         <TrendingUp className="w-5 h-5 text-primary" />
@@ -703,7 +703,7 @@ function ComboRankingCard({
   compact?: boolean;
 }) {
   return (
-    <div className={cn('bg-surface-container border border-outline rounded-3xl shadow-sm', compact ? 'p-5' : 'p-8')}>
+    <div className={cn('bg-surface-container border border-outline rounded-3xl shadow-sm', compact ? 'p-5' : 'p-5 md:p-8')}>
       <h3 className={cn('font-bold', compact ? 'text-base' : 'text-xl')}>{title}</h3>
       <p className="text-sm text-on-surface-variant mt-1 mb-5 font-medium">{subtitle}</p>
 

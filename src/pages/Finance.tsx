@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -232,7 +232,7 @@ export default function FinancePage() {
         </div>
       </section>
 
-      <section className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
+      <section className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm">
         <div className="flex justify-between items-center mb-10">
           <div>
             <h3 className="text-xl font-bold">Evolução do Saldo</h3>
@@ -293,7 +293,7 @@ export default function FinancePage() {
       </section>
 
       <section className="bg-surface-container border border-outline rounded-3xl overflow-hidden shadow-sm">
-        <div className="px-8 py-6 border-b border-outline/50 flex justify-between items-center">
+        <div className="px-4 md:px-8 py-4 md:py-6 border-b border-outline/50 flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-bold">Últimas Movimentações por Concurso</h3>
         </div>
         <div className="divide-y divide-outline/30">
@@ -384,7 +384,7 @@ function TransactionRow({
   detail: string;
 }) {
   return (
-    <div className="px-8 py-5 flex items-center justify-between hover:bg-surface-dim transition-all group">
+    <div className="px-4 md:px-8 py-4 md:py-5 flex items-center justify-between gap-3 hover:bg-surface-dim transition-all group">
       <div className="flex items-center gap-4">
         <div className="text-[10px] font-bold text-on-surface-variant/40 group-hover:text-primary transition-colors">{date}</div>
         <div>

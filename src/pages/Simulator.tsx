@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   History,
   Play,
@@ -236,7 +236,7 @@ export default function SimulatorPage() {
 
   return (
     <div className="space-y-8">
-      <section className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
+      <section className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex-1 space-y-4">
             <div className="flex items-center gap-3">
@@ -301,7 +301,7 @@ export default function SimulatorPage() {
         <ResultHUDCard label="Resultado Liquido" value={formatCurrency(result.balance)} unit="Saldo" negative={result.balance < 0} />
       </section>
 
-      <section className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm space-y-6">
+      <section className="bg-surface-container border border-outline rounded-3xl p-5 md:p-8 shadow-sm space-y-6">
         <div className="flex items-center gap-3">
           <Target className="w-5 h-5 text-primary" />
           <h3 className="font-bold text-xl">Realidade de Chances da Aposta</h3>
@@ -373,7 +373,7 @@ export default function SimulatorPage() {
       </section>
 
       <section className="bg-surface-container border border-outline rounded-3xl overflow-hidden shadow-sm">
-        <div className="px-8 py-6 border-b border-outline/50 flex justify-between items-center bg-surface-dim/30">
+        <div className="px-4 md:px-8 py-4 md:py-6 border-b border-outline/50 flex flex-wrap justify-between items-center gap-3 bg-surface-dim/30">
           <div className="flex items-center gap-3">
             <History className="w-5 h-5 text-primary" />
             <h3 className="font-bold">Timeline de Acertos</h3>
@@ -383,8 +383,8 @@ export default function SimulatorPage() {
           </div>
         </div>
 
-        <div className="p-8">
-          <div className="grid grid-cols-10 gap-2 mb-10 overflow-hidden rounded-xl">
+        <div className="p-4 md:p-8">
+          <div className="grid grid-cols-10 gap-1 sm:gap-2 mb-8 md:mb-10 overflow-hidden rounded-xl">
             {result.timeline.slice(-100).map((item) => (
               <div
                 key={item.concurso}
@@ -469,12 +469,12 @@ function ProbabilityCard({ label, oneIn, probability }: { label: string; oneIn: 
 
 function SimulationHistoryRow({ date, concurso, points, prize }: { date: string; concurso: string; points: number; prize: string }) {
   return (
-    <div className="flex items-center justify-between p-5 bg-surface-dim/40 border border-outline/20 rounded-2xl">
-      <div className="flex items-center gap-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:p-5 gap-2 bg-surface-dim/40 border border-outline/20 rounded-2xl">
+      <div className="flex items-center gap-3 md:gap-6">
         <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest opacity-80">{date}</div>
         <div className="px-3 py-1 bg-white border border-outline/50 rounded-lg text-xs font-bold">Concurso {concurso}</div>
       </div>
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-3 md:gap-8">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-on-surface-variant">{points} pts</span>
         </div>

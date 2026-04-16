@@ -38,7 +38,7 @@ export default function TimePage() {
   return (
     <div className="space-y-8">
       {/* Session Hero */}
-      <section className="bg-surface-container border border-outline rounded-3xl p-12 text-center relative overflow-hidden shadow-sm">
+      <section className="bg-surface-container border border-outline rounded-3xl p-6 sm:p-12 text-center relative overflow-hidden shadow-sm">
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
            <img 
             src="https://picsum.photos/seed/time/800/800" 
@@ -57,19 +57,19 @@ export default function TimePage() {
             Tempo de Análise Atual
           </span>
           
-          <h1 className="text-8xl font-black tracking-tighter text-on-surface mb-12 font-inter">
+          <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tighter text-on-surface mb-10 md:mb-12 font-inter">
             {formatTime(seconds)}
           </h1>
 
           <div className="flex flex-wrap justify-center gap-4">
             <button 
               onClick={() => setIsActive(!isActive)}
-              className="flex items-center gap-3 px-12 py-4 green-gradient-btn text-white rounded-2xl font-bold uppercase tracking-widest shadow-2xl shadow-primary/20 hover:translate-y-[-2px] active:scale-95 transition-all"
+              className="flex items-center gap-3 px-6 md:px-12 py-3 md:py-4 green-gradient-btn text-white rounded-2xl font-bold uppercase tracking-widest shadow-2xl shadow-primary/20 hover:translate-y-[-2px] active:scale-95 transition-all"
             >
               {isActive ? <Square className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
               {isActive ? 'Suspender' : 'Retomar Sessão'}
             </button>
-            <button className="flex items-center gap-3 px-12 py-4 bg-surface-dim border border-outline text-on-surface-variant rounded-2xl font-bold uppercase tracking-widest transition-all hover:bg-white active:scale-95">
+            <button className="flex items-center gap-3 px-6 md:px-12 py-3 md:py-4 bg-surface-dim border border-outline text-on-surface-variant rounded-2xl font-bold uppercase tracking-widest transition-all hover:bg-white active:scale-95">
               <History className="w-5 h-5" />
               Concluir
             </button>
@@ -78,7 +78,7 @@ export default function TimePage() {
       </section>
 
       {/* Alert Component */}
-      <section className="bg-white border border-outline rounded-3xl p-8 shadow-sm">
+      <section className="bg-white border border-outline rounded-3xl p-5 md:p-8 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-error-container text-error rounded-xl flex items-center justify-center shadow-sm">
