@@ -1,11 +1,21 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Flame, Snowflake, Award, UploadCloud, RefreshCcw } from 'lucide-react';
+import {
+  Flame,
+  Snowflake,
+  Award,
+  UploadCloud,
+  RefreshCcw,
+  Filter,
+  TrendingUp,
+} from 'lucide-react';
 import { cn } from '../lib/utils';
-import { buildMegaStats } from '../lib/stats';
+import { buildMegaStats, formatNumberBadge } from '../lib/stats';
 import { fetchAllDraws, importDrawsWorkbook } from '../lib/draws';
 import { useAuth } from '../contexts/AuthContext';
 import type { Draw } from '../types';
+
+type WindowOption = 'all' | '50' | '100' | '500' | '1000';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('pt-BR', {
@@ -22,6 +32,12 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(date);
 }
 
+function getWindowDraws(draws: Draw[], option: WindowOption) {
+  if (option === 'all') return draws;
+  const size = Number(option);
+  return draws.slice(-size);
+}
+
 export default function StatsPage() {
   const { firebaseReady, authError } = useAuth();
   const [draws, setDraws] = useState<Draw[]>([]);
@@ -30,6 +46,7 @@ export default function StatsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<string | null>(null);
+  const [windowOption, setWindowOption] = useState<WindowOption>('500');
 
   const loadDraws = useCallback(async () => {
     setLoading(true);
@@ -48,7 +65,8 @@ export default function StatsPage() {
     loadDraws();
   }, [loadDraws]);
 
-  const stats = useMemo(() => buildMegaStats(draws), [draws]);
+  const filteredDraws = useMemo(() => getWindowDraws(draws, windowOption), [draws, windowOption]);
+  const stats = useMemo(() => buildMegaStats(filteredDraws), [filteredDraws]);
   const latest = stats.latestDraw;
 
   const handleImport = async () => {
@@ -115,9 +133,7 @@ export default function StatsPage() {
           </div>
         </div>
 
-        {importSummary ? (
-          <p className="mt-4 text-sm font-medium text-primary">{importSummary}</p>
-        ) : null}
+        {importSummary ? <p className="mt-4 text-sm font-medium text-primary">{importSummary}</p> : null}
         {!firebaseReady ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
             Firebase indisponivel neste build: importacao e leitura funcionando em modo local no navegador.
@@ -127,11 +143,43 @@ export default function StatsPage() {
         {error ? <p className="mt-4 text-sm font-medium text-error">{error}</p> : null}
       </section>
 
+      <section className="bg-surface-container border border-outline rounded-3xl p-6 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            <Filter className="w-4 h-4" />
+            Janela de análise
+          </span>
+          {([
+            { id: '50', label: '50' },
+            { id: '100', label: '100' },
+            { id: '500', label: '500' },
+            { id: '1000', label: '1000' },
+            { id: 'all', label: 'Tudo' },
+          ] as const).map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setWindowOption(item.id)}
+              className={cn(
+                'px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-all',
+                windowOption === item.id
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-on-surface-variant border-outline hover:border-primary/30 hover:text-primary',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+          <span className="ml-auto text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            {stats.totalDraws} concursos analisados
+          </span>
+        </div>
+      </section>
+
       <section className="green-gradient-btn rounded-3xl p-10 relative overflow-hidden shadow-2xl shadow-primary/20 transition-all hover:scale-[1.01]">
         <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -mr-40 -mt-40 blur-3xl" />
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
           <div>
-            <span className="font-bold text-white/70 uppercase tracking-[0.2em] text-[10px]">Ultimo Sorteio</span>
+            <span className="font-bold text-white/70 uppercase tracking-[0.2em] text-[10px]">Ultimo Sorteio da Janela</span>
             <h2 className="text-2xl md:text-3xl font-extrabold text-white mt-1">
               {latest ? `Concurso ${latest.concurso}` : 'Nenhum concurso importado'}
             </h2>
@@ -142,7 +190,7 @@ export default function StatsPage() {
               {latest?.winners6 ? 'Teve ganhador' : 'Acumulou'}
             </div>
             <p className="text-white font-bold text-lg leading-tight">
-              Proximo premio estimado:<br />
+              Premio estimado:<br />
               <span className="text-3xl md:text-4xl">{latest ? formatCurrency(latest.estimatedPrize) : 'R$ 0'}</span>
             </p>
           </div>
@@ -160,15 +208,19 @@ export default function StatsPage() {
         </div>
       </section>
 
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <KpiCard label="Soma média" value={stats.averageSum.toFixed(1)} />
+        <KpiCard label="Repete do concurso anterior" value={stats.averageRepeatsFromPrevious.toFixed(2)} />
+        <KpiCard label="Sequências consecutivas" value={`${stats.consecutivePairRate.toFixed(1)}%`} />
+        <KpiCard label="Padrão de paridade" value={`${stats.parityPattern.evens}P-${stats.parityPattern.odds}I`} />
+      </section>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
           <div className="flex justify-between items-center mb-8">
             <h3 className="font-bold text-xl">Volante de Calor</h3>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-              Frequencia historica
-            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Frequencia na janela</span>
           </div>
-
           <div className="grid grid-cols-10 gap-2 md:gap-3">
             {stats.heatmap.map((item) => (
               <div
@@ -185,7 +237,7 @@ export default function StatsPage() {
                         : 'bg-surface-dim text-on-surface-variant/40 border border-outline/30',
                 )}
               >
-                {String(item.num).padStart(2, '0')}
+                {formatNumberBadge(item.num)}
               </div>
             ))}
           </div>
@@ -196,19 +248,19 @@ export default function StatsPage() {
             icon={Flame}
             title="Mais frequente"
             subtitle="Quem mais aparece"
-            value={`Numero ${String(stats.mostFrequent.number).padStart(2, '0')} · ${stats.mostFrequent.count} vezes`}
+            value={`Numero ${formatNumberBadge(stats.mostFrequent.number)} · ${stats.mostFrequent.count} vezes`}
             color="primary"
           />
           <InsightCard
             icon={Snowflake}
             title="Mais ausente"
             subtitle="Sumido ha mais tempo"
-            value={`Numero ${String(stats.mostAbsent.number).padStart(2, '0')} · ${stats.mostAbsent.draws} concursos`}
+            value={`Numero ${formatNumberBadge(stats.mostAbsent.number)} · ${stats.mostAbsent.draws} concursos`}
             color="gray"
           />
           <InsightCard
             icon={Award}
-            title="Par ou impar?"
+            title="Par ou impar"
             subtitle="Padrao mais recorrente"
             value={`${stats.parityPattern.evens} pares + ${stats.parityPattern.odds} impares`}
             color="light"
@@ -216,19 +268,19 @@ export default function StatsPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <RankingCard title="Top 10 Frequentes" items={stats.topFrequent} />
+        <RankingCard title="Top 10 Atrasadas" items={stats.topAbsent} />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
           <h3 className="font-bold text-xl mb-1">Distribuicao da Soma</h3>
-          <p className="text-sm text-on-surface-variant mb-10 font-medium">Frequencia por intervalo de soma dos numeros.</p>
+          <p className="text-sm text-on-surface-variant mb-10 font-medium">Frequencia por intervalo da soma das dezenas.</p>
           <div className="space-y-6">
             {stats.sumDistribution.map((item) => (
               <div key={item.range} className="flex items-center gap-4">
-                <span
-                  className={cn(
-                    'text-[10px] w-14 font-bold uppercase tracking-widest',
-                    item.highlight ? 'text-primary' : 'text-on-surface-variant',
-                  )}
-                >
+                <span className={cn('text-[10px] w-16 font-bold uppercase tracking-widest', item.highlight ? 'text-primary' : 'text-on-surface-variant')}>
                   {item.range}
                 </span>
                 <div className="flex-1 h-3 bg-surface-dim rounded-full overflow-hidden border border-outline/30">
@@ -238,7 +290,7 @@ export default function StatsPage() {
                     className={cn('h-full rounded-full', item.highlight ? 'bg-primary' : 'bg-on-surface-variant/20')}
                   />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant w-10 text-right">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant w-12 text-right">
                   {Math.round(item.value)}%
                 </span>
               </div>
@@ -247,29 +299,84 @@ export default function StatsPage() {
         </div>
 
         <div className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
-          <h3 className="font-bold text-xl mb-1">Origem dos Numeros</h3>
-          <p className="text-sm text-on-surface-variant mb-10 font-medium">Percentual de saida por faixa numerica.</p>
-          <div className="flex items-end justify-between gap-6 h-32 mb-6 px-4">
-            {stats.originDistribution.map((item) => (
-              <div key={item.name} className="flex-1 flex flex-col items-center gap-3">
-                <div className="w-full relative group">
+          <h3 className="font-bold text-xl mb-1">Distribuicao de Paridade</h3>
+          <p className="text-sm text-on-surface-variant mb-10 font-medium">Faixas de pares/impares por concurso.</p>
+          <div className="space-y-4">
+            {stats.parityDistribution.map((item) => (
+              <div key={item.label} className="flex items-center gap-4">
+                <span className={cn('text-[10px] w-14 font-bold uppercase tracking-widest', item.highlight ? 'text-primary' : 'text-on-surface-variant')}>
+                  {item.label}
+                </span>
+                <div className="flex-1 h-3 bg-surface-dim rounded-full overflow-hidden border border-outline/30">
                   <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${item.height}%` }}
-                    className={cn(
-                      'w-full rounded-xl transition-all',
-                      item.name === 'Medios' ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-primary-container',
-                    )}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${item.value}%` }}
+                    className={cn('h-full rounded-full', item.highlight ? 'bg-primary' : 'bg-on-surface-variant/20')}
                   />
                 </div>
-                <div className="text-center">
-                  <span className="text-[10px] font-extrabold text-on-surface uppercase tracking-widest">{item.name}</span>
-                  <div className="text-xs font-bold text-primary mt-1">{Math.round(item.value)}%</div>
-                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant w-12 text-right">
+                  {Math.round(item.value)}%
+                </span>
               </div>
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
+        <h3 className="font-bold text-xl mb-1">Origem dos Numeros</h3>
+        <p className="text-sm text-on-surface-variant mb-10 font-medium">Percentual de saida por faixa numerica.</p>
+        <div className="flex items-end justify-between gap-6 h-40 mb-6 px-4">
+          {stats.originDistribution.map((item) => (
+            <div key={item.name} className="flex-1 flex flex-col items-center gap-3">
+              <div className="w-full relative group h-full flex items-end">
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${item.height}%` }}
+                  className={cn('w-full rounded-xl transition-all', item.name === 'Medios' ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-primary-container')}
+                />
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] font-extrabold text-on-surface uppercase tracking-widest">{item.name}</span>
+                <div className="text-xs font-bold text-primary mt-1">{Math.round(item.value)}%</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-surface-container border border-outline rounded-2xl p-5 shadow-sm">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
+      <p className="text-2xl font-extrabold text-on-surface mt-2">{value}</p>
+    </div>
+  );
+}
+
+function RankingCard({ title, items }: { title: string; items: Array<{ number: number; count: number }> }) {
+  const maxValue = Math.max(1, ...items.map((item) => item.count));
+
+  return (
+    <div className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-bold text-xl">{title}</h3>
+        <TrendingUp className="w-5 h-5 text-primary" />
+      </div>
+
+      <div className="space-y-3">
+        {items.map((item) => (
+          <div key={item.number} className="flex items-center gap-3">
+            <span className="w-10 text-sm font-bold text-on-surface">{formatNumberBadge(item.number)}</span>
+            <div className="flex-1 h-2.5 bg-surface-dim rounded-full overflow-hidden border border-outline/30">
+              <div className="h-full bg-primary" style={{ width: `${(item.count / maxValue) * 100}%` }} />
+            </div>
+            <span className="w-10 text-right text-xs font-bold text-on-surface-variant">{item.count}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -304,5 +411,3 @@ function InsightCard({ icon: Icon, title, subtitle, value, color }: any) {
     </div>
   );
 }
-
-
