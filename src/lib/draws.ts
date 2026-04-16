@@ -43,6 +43,9 @@ const HEADER = {
   observation: 'Observacao',
 } as const;
 
+const SHEET_PATH = 'xl/worksheets/sheet1.xml';
+const SHARED_STRINGS_PATH = 'xl/sharedStrings.xml';
+
 function normalizeHeader(header: string) {
   return header
     .normalize('NFD')
@@ -76,6 +79,96 @@ function parseDate(value: unknown): string {
   if (!match) return text;
   const [, day, month, year] = match;
   return `${year}-${month}-${day}`;
+}
+
+function decodeXmlEntities(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#10;/g, '\n')
+    .replace(/&#13;/g, '\r');
+}
+
+function getWorkbookFileText(workbook: XLSX.WorkBook, path: string): string {
+  const files = (workbook as XLSX.WorkBook & { files?: Record<string, { content?: unknown }> }).files;
+  const file = files?.[path];
+  const content = file?.content;
+  if (!content) return '';
+
+  if (typeof content === 'string') return content;
+  if (content instanceof ArrayBuffer) return new TextDecoder().decode(new Uint8Array(content));
+  if (content instanceof Uint8Array) return new TextDecoder().decode(content);
+  if (Array.isArray(content)) return new TextDecoder().decode(new Uint8Array(content));
+
+  return '';
+}
+
+function lettersToColumnIndex(letters: string): number {
+  let result = 0;
+  for (const char of letters.toUpperCase()) {
+    result = result * 26 + (char.charCodeAt(0) - 64);
+  }
+  return result - 1;
+}
+
+function parseSharedStrings(xml: string): string[] {
+  const siNodes = xml.match(/<si[\s\S]*?<\/si>/g) || [];
+  return siNodes.map((node) => {
+    const parts = [...node.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => decodeXmlEntities(m[1]));
+    return parts.join('');
+  });
+}
+
+function parseSheetRowsFromXml(sheetXml: string, sharedStrings: string[]): Record<string, unknown>[] {
+  const rowNodes = sheetXml.match(/<(?:x:)?row\b[\s\S]*?<\/(?:x:)?row>/g) || [];
+  if (!rowNodes.length) return [];
+
+  let headersByColumn = new Map<number, string>();
+  const rows: Record<string, unknown>[] = [];
+
+  rowNodes.forEach((rowNode, rowIndex) => {
+    const cellNodes = rowNode.match(/<(?:x:)?c\b[\s\S]*?(?:\/>|<\/(?:x:)?c>)/g) || [];
+    const columns = new Map<number, unknown>();
+
+    for (const cell of cellNodes) {
+      const refMatch = cell.match(/\br="([A-Z]+)\d+"/);
+      if (!refMatch) continue;
+      const colIndex = lettersToColumnIndex(refMatch[1]);
+      const typeMatch = cell.match(/\bt="([^"]+)"/);
+      const type = typeMatch?.[1] || '';
+
+      const valueMatch = cell.match(/<(?:x:)?v>([\s\S]*?)<\/(?:x:)?v>/);
+      const rawValue = valueMatch?.[1] ?? '';
+
+      let value: unknown = decodeXmlEntities(rawValue);
+      if (type === 's') {
+        value = sharedStrings[Number(rawValue)] ?? '';
+      }
+
+      columns.set(colIndex, value);
+    }
+
+    if (!columns.size) return;
+
+    if (rowIndex === 0) {
+      headersByColumn = new Map<number, string>();
+      columns.forEach((value, colIndex) => {
+        headersByColumn.set(colIndex, String(value || '').trim());
+      });
+      return;
+    }
+
+    const row: Record<string, unknown> = {};
+    headersByColumn.forEach((header, colIndex) => {
+      row[header] = columns.has(colIndex) ? columns.get(colIndex) : '';
+    });
+    rows.push(row);
+  });
+
+  return rows;
 }
 
 function readValue(row: Record<string, unknown>, expectedHeader: string): unknown {
@@ -155,13 +248,26 @@ function mergeDrawSets(existing: Draw[], incoming: Draw[]) {
 
 export async function parseDrawsWorkbook(file: File): Promise<ParsedWorkbook> {
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array' });
+  const workbook = XLSX.read(buffer, { type: 'array', bookFiles: true });
   const firstSheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[firstSheetName];
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  let rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+
+  // Some Caixa workbooks come with a broken dimension (e.g. A1:T1). Fallback to raw XML parsing.
+  if (!rawRows.length) {
+    const sheetXml = getWorkbookFileText(workbook, SHEET_PATH);
+    const sharedStringsXml = getWorkbookFileText(workbook, SHARED_STRINGS_PATH);
+    const sharedStrings = parseSharedStrings(sharedStringsXml);
+    rawRows = parseSheetRowsFromXml(sheetXml, sharedStrings);
+  }
+
   const parsedRows = rawRows.map(parseRow);
   const draws = parsedRows.filter((item): item is Draw => Boolean(item));
   const skipped = parsedRows.length - draws.length;
+
+  if (!draws.length) {
+    throw new Error('Nenhum concurso válido encontrado no XLSX. Verifique o arquivo e tente novamente.');
+  }
 
   return { draws, skipped };
 }
