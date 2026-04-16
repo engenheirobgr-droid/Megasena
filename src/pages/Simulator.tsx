@@ -26,6 +26,13 @@ type SimulationResult = {
   recentHits: Array<{ draw: Draw; hit: number; prize: number }>;
 };
 
+type OddsBreakdown = {
+  sena: number;
+  quina: number;
+  quadra: number;
+  atLeastQuadra: number;
+};
+
 const BET_COST = 5;
 
 function formatCurrency(value: number) {
@@ -49,6 +56,52 @@ function evaluateDraw(draw: Draw, numbers: number[]) {
   if (hit === 5) prize = draw.prize5 || 0;
   if (hit === 6) prize = draw.prize6 || 0;
   return { hit, prize };
+}
+
+function combination(n: number, k: number): number {
+  if (k < 0 || k > n) return 0;
+  if (k === 0 || k === n) return 1;
+
+  const kk = Math.min(k, n - k);
+  let result = 1;
+
+  for (let i = 1; i <= kk; i += 1) {
+    result = (result * (n - kk + i)) / i;
+  }
+
+  return result;
+}
+
+function calculateMegaOdds(): OddsBreakdown {
+  const total = combination(60, 6);
+  const sena = (combination(6, 6) * combination(54, 0)) / total;
+  const quina = (combination(6, 5) * combination(54, 1)) / total;
+  const quadra = (combination(6, 4) * combination(54, 2)) / total;
+
+  return {
+    sena,
+    quina,
+    quadra,
+    atLeastQuadra: sena + quina + quadra,
+  };
+}
+
+function chanceAtLeastOne(probability: number, trials: number): number {
+  if (!trials || probability <= 0) return 0;
+  return 1 - Math.pow(1 - probability, trials);
+}
+
+function formatProbability(probability: number): string {
+  const pct = probability * 100;
+  if (pct >= 1) return `${pct.toFixed(2)}%`;
+  if (pct >= 0.01) return `${pct.toFixed(4)}%`;
+  return `${pct.toFixed(6)}%`;
+}
+
+function formatOneIn(probability: number): string {
+  if (!probability) return '-';
+  const oneIn = Math.round(1 / probability);
+  return `1 em ${oneIn.toLocaleString('pt-BR')}`;
 }
 
 function simulate(draws: Draw[], bet: BetRecord | null): SimulationResult {
@@ -109,6 +162,8 @@ export default function SimulatorPage() {
   const [period, setPeriod] = useState<PeriodOption>('100');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [betsPerContest, setBetsPerContest] = useState<string>('1');
+  const [plannedContests, setPlannedContests] = useState<string>('12');
 
   const loadData = async () => {
     setLoading(true);
@@ -143,6 +198,41 @@ export default function SimulatorPage() {
 
   const selectedBet = useMemo(() => bets.find((item) => item.id === selectedBetId) || null, [bets, selectedBetId]);
   const result = useMemo(() => simulate(filteredDraws, selectedBet), [filteredDraws, selectedBet]);
+  const odds = useMemo(() => calculateMegaOdds(), []);
+
+  const betsPerContestNumber = Math.max(0, Math.trunc(Number(betsPerContest) || 0));
+  const plannedContestsNumber = Math.max(0, Math.trunc(Number(plannedContests) || 0));
+  const totalPlannedBets = betsPerContestNumber * plannedContestsNumber;
+
+  const historicalPrizeAverages = useMemo(() => {
+    const total = filteredDraws.length || 1;
+    const avgPrize4 = filteredDraws.reduce((acc, draw) => acc + (draw.prize4 || 0), 0) / total;
+    const avgPrize5 = filteredDraws.reduce((acc, draw) => acc + (draw.prize5 || 0), 0) / total;
+    const avgPrize6 = filteredDraws.reduce((acc, draw) => acc + (draw.prize6 || 0), 0) / total;
+    return { avgPrize4, avgPrize5, avgPrize6 };
+  }, [filteredDraws]);
+
+  const expectedValuePerBet = useMemo(() => {
+    const gross =
+      odds.quadra * historicalPrizeAverages.avgPrize4 +
+      odds.quina * historicalPrizeAverages.avgPrize5 +
+      odds.sena * historicalPrizeAverages.avgPrize6;
+
+    return {
+      gross,
+      net: gross - BET_COST,
+    };
+  }, [odds, historicalPrizeAverages]);
+
+  const plannedChances = useMemo(
+    () => ({
+      quadra: chanceAtLeastOne(odds.quadra, totalPlannedBets),
+      quina: chanceAtLeastOne(odds.quina, totalPlannedBets),
+      sena: chanceAtLeastOne(odds.sena, totalPlannedBets),
+      atLeastQuadra: chanceAtLeastOne(odds.atLeastQuadra, totalPlannedBets),
+    }),
+    [odds, totalPlannedBets],
+  );
 
   return (
     <div className="space-y-8">
@@ -153,10 +243,10 @@ export default function SimulatorPage() {
               <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
                 <Settings className="w-6 h-6" />
               </div>
-              <h2 className="text-2xl font-bold">Configuração da Simulação</h2>
+              <h2 className="text-2xl font-bold">Configuracao da Simulacao</h2>
             </div>
             <p className="text-sm text-on-surface-variant font-medium leading-relaxed max-w-lg">
-              Backtest real no histórico importado com seu jogo cadastrado.
+              Backtest real no historico importado com seu jogo cadastrado.
             </p>
           </div>
 
@@ -178,16 +268,16 @@ export default function SimulatorPage() {
             </div>
 
             <div className="flex-1 md:flex-none min-w-44">
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-on-surface-variant mb-2 block px-1">Período</label>
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-on-surface-variant mb-2 block px-1">Periodo</label>
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value as PeriodOption)}
                 className="w-full bg-surface-dim border border-outline/50 rounded-xl px-4 py-3 text-sm font-bold outline-none"
               >
-                <option value="50">Últimos 50 concursos</option>
-                <option value="100">Últimos 100 concursos</option>
-                <option value="500">Últimos 500 concursos</option>
-                <option value="all">Todo o histórico</option>
+                <option value="50">Ultimos 50 concursos</option>
+                <option value="100">Ultimos 100 concursos</option>
+                <option value="500">Ultimos 500 concursos</option>
+                <option value="all">Todo o historico</option>
               </select>
             </div>
 
@@ -207,8 +297,79 @@ export default function SimulatorPage() {
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <ResultHUDCard label="Total Investido" value={formatCurrency(result.totalInvested)} unit={`${result.totalDraws} apostas`} />
-        <ResultHUDCard label="Prêmios Ganhos" value={formatCurrency(result.totalPrizes)} unit={`${result.quadras}Q · ${result.quinas}QN · ${result.senas}S`} />
-        <ResultHUDCard label="Resultado Líquido" value={formatCurrency(result.balance)} unit="Saldo" negative={result.balance < 0} />
+        <ResultHUDCard label="Premios Ganhos" value={formatCurrency(result.totalPrizes)} unit={`${result.quadras}Q · ${result.quinas}QN · ${result.senas}S`} />
+        <ResultHUDCard label="Resultado Liquido" value={formatCurrency(result.balance)} unit="Saldo" negative={result.balance < 0} />
+      </section>
+
+      <section className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm space-y-6">
+        <div className="flex items-center gap-3">
+          <Target className="w-5 h-5 text-primary" />
+          <h3 className="font-bold text-xl">Realidade de Chances da Aposta</h3>
+        </div>
+        <p className="text-sm text-on-surface-variant font-medium">
+          Probabilidades matematicas para aposta simples de 6 dezenas na Mega-Sena, com visao acumulada pelo volume de apostas.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <ProbabilityCard label="Sena (6 acertos)" oneIn={formatOneIn(odds.sena)} probability={formatProbability(odds.sena)} />
+          <ProbabilityCard label="Quina (5 acertos)" oneIn={formatOneIn(odds.quina)} probability={formatProbability(odds.quina)} />
+          <ProbabilityCard label="Quadra (4 acertos)" oneIn={formatOneIn(odds.quadra)} probability={formatProbability(odds.quadra)} />
+          <ProbabilityCard
+            label="Pelo menos quadra"
+            oneIn={formatOneIn(odds.atLeastQuadra)}
+            probability={formatProbability(odds.atLeastQuadra)}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="text-[10px] font-extrabold uppercase tracking-widest text-on-surface-variant mb-2 block">Apostas por concurso</label>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={betsPerContest}
+              onChange={(e) => setBetsPerContest(e.target.value)}
+              className="w-full bg-surface-dim border border-outline/50 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-extrabold uppercase tracking-widest text-on-surface-variant mb-2 block">Quantidade de concursos</label>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={plannedContests}
+              onChange={(e) => setPlannedContests(e.target.value)}
+              className="w-full bg-surface-dim border border-outline/50 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+            />
+          </div>
+          <div className="bg-surface-dim border border-outline/50 rounded-xl px-4 py-3 flex flex-col justify-center">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-on-surface-variant">Total de apostas planejadas</span>
+            <span className="text-xl font-bold text-on-surface mt-1">{totalPlannedBets.toLocaleString('pt-BR')}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <ProbabilityCard label="Chance de ao menos 1 sena" oneIn={formatOneIn(plannedChances.sena)} probability={formatProbability(plannedChances.sena)} />
+          <ProbabilityCard label="Chance de ao menos 1 quina" oneIn={formatOneIn(plannedChances.quina)} probability={formatProbability(plannedChances.quina)} />
+          <ProbabilityCard label="Chance de ao menos 1 quadra" oneIn={formatOneIn(plannedChances.quadra)} probability={formatProbability(plannedChances.quadra)} />
+          <ProbabilityCard
+            label="Chance de ao menos 1 premio (4+)"
+            oneIn={formatOneIn(plannedChances.atLeastQuadra)}
+            probability={formatProbability(plannedChances.atLeastQuadra)}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <ResultHUDCard label="Retorno esperado por aposta" value={formatCurrency(expectedValuePerBet.gross)} unit="Media historica por faixa" />
+          <ResultHUDCard
+            label="Valor esperado liquido"
+            value={formatCurrency(expectedValuePerBet.net)}
+            unit={`Apos custo de ${formatCurrency(BET_COST)}`}
+            negative={expectedValuePerBet.net < 0}
+          />
+        </div>
       </section>
 
       <section className="bg-surface-container border border-outline rounded-3xl overflow-hidden shadow-sm">
@@ -233,14 +394,14 @@ export default function SimulatorPage() {
                   item.hit >= 6 ? 'bg-emerald-700' :
                   item.hit === 5 ? 'bg-emerald-500' :
                   item.hit === 4 ? 'bg-primary' :
-                  'bg-surface-dim border-outline/50'
+                  'bg-surface-dim border-outline/50',
                 )}
               />
             ))}
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-[10px] font-extrabold text-on-surface-variant uppercase tracking-widest mb-4 px-1">Últimos Acertos Relevantes</h4>
+            <h4 className="text-[10px] font-extrabold text-on-surface-variant uppercase tracking-widest mb-4 px-1">Ultimos Acertos Relevantes</h4>
             {result.recentHits.length ? (
               result.recentHits.map((item) => (
                 <div key={item.draw.concurso}>
@@ -254,7 +415,7 @@ export default function SimulatorPage() {
               ))
             ) : (
               <div className="p-4 rounded-xl bg-surface-dim/40 border border-outline/20 text-sm text-on-surface-variant">
-                Nenhum acerto de quadra ou superior no período selecionado.
+                Nenhum acerto de quadra ou superior no periodo selecionado.
               </div>
             )}
           </div>
@@ -268,7 +429,7 @@ export default function SimulatorPage() {
 
       <section className="bg-surface-container border border-outline rounded-3xl p-6 shadow-sm">
         <div className="flex items-center gap-3 mb-3">
-          <Target className="w-5 h-5 text-primary" />
+          <Play className="w-5 h-5 text-primary" />
           <h3 className="font-bold">Jogo Selecionado</h3>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -292,6 +453,16 @@ function ResultHUDCard({ label, value, unit, negative }: { label: string; value:
         <p className={cn('text-3xl font-bold font-inter', negative ? 'text-error' : 'text-on-surface')}>{value}</p>
         <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-widest">{unit}</p>
       </div>
+    </div>
+  );
+}
+
+function ProbabilityCard({ label, oneIn, probability }: { label: string; oneIn: string; probability: string }) {
+  return (
+    <div className="bg-white border border-outline p-5 rounded-2xl shadow-sm">
+      <p className="text-[10px] font-extrabold text-on-surface-variant uppercase tracking-widest mb-2">{label}</p>
+      <p className="text-xl font-bold text-on-surface">{oneIn}</p>
+      <p className="text-sm font-semibold text-primary mt-1">{probability}</p>
     </div>
   );
 }
