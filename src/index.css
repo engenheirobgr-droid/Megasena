@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-manrope: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-surface-container-high: #FFFFFF;
+  --color-outline: #E2E8F0;
+  --color-on-secondary: #FFFFFF;
+  --color-on-secondary-fixed: #1E293B;
+  --color-surface-container: #FFFFFF;
+  --color-on-secondary-fixed-variant: #64748B;
+  --color-primary-container: #EFF6FF;
+  --color-inverse-primary: #3B82F6;
+  --color-on-surface: #1E293B;
+  --color-error: #EF4444;
+  --color-secondary-container: #F8FAFC;
+  --color-on-background: #1E293B;
+  --color-tertiary-fixed: #F1F5F9;
+  --color-tertiary: #64748B;
+  --color-secondary-fixed: #E2E8F0;
+  --color-inverse-surface: #1E293B;
+  --color-inverse-on-surface: #FFFFFF;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #64748B;
+  --color-on-tertiary-fixed-variant: #475569;
+  --color-on-primary-fixed: #1E3A8A;
+  --color-tertiary-fixed-dim: #94A3B8;
+  --color-surface-container-lowest: #FFFFFF;
+  --color-surface-dim: #F1F5F9;
+  --color-on-primary-container: #1E40AF;
+  --color-primary-fixed: #DBEAFE;
+  --color-background: #F1F5F9;
+  --color-on-secondary-container: #475569;
+  --color-primary: #3B82F6;
+  --color-on-primary-fixed-variant: #1E3A8A;
+  --color-on-tertiary-fixed: #1E293B;
+  --color-surface-variant: #F8FAFC;
+  --color-on-surface-variant: #64748B;
+  --color-surface-bright: #FFFFFF;
+  --color-primary-fixed-dim: #3B82F6;
+  --color-on-tertiary: #FFFFFF;
+  --color-tertiary-container: #F1F5F9;
+  --color-surface-tint: #3B82F6;
+  --color-on-error: #FFFFFF;
+  --color-surface-container-highest: #F8FAFC;
+  --color-on-tertiary-container: #1E293B;
+  --color-surface-container-low: #FFFFFF;
+  --color-surface: #F1F5F9;
+  --color-secondary-fixed-dim: #CBD5E1;
+  --color-error-container: #FEE2E2;
+  --color-on-error-container: #991B1B;
+  --color-outline-variant: #E2E8F0;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-surface font-inter antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-inter;
+  }
+}
+
+.green-gradient-btn {
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid #E2E8F0;
+}
+
+.tap-highlight-transparent {
+  -webkit-tap-highlight-color: transparent;
+}
