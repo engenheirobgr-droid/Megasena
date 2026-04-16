@@ -55,6 +55,19 @@ function parseNumbersFromInput(raw: string): number[] {
   return [...new Set(parsed)].slice(0, 6).sort((a, b) => a - b);
 }
 
+function isConsecutiveSequence(values: number[]): boolean {
+  if (values.length <= 1) return true;
+  const sorted = [...values].sort((a, b) => a - b);
+  for (let i = 1; i < sorted.length; i += 1) {
+    if (sorted[i] - sorted[i - 1] !== 1) return false;
+  }
+  return true;
+}
+
+function drawContainsNumbers(draw: Draw, numbers: number[]): boolean {
+  return numbers.every((num) => draw.numbers.includes(num));
+}
+
 export default function StatsPage() {
   const { firebaseReady, authError } = useAuth();
   const [draws, setDraws] = useState<Draw[]>([]);
@@ -71,6 +84,8 @@ export default function StatsPage() {
 
   const [selectedNumbersText, setSelectedNumbersText] = useState<string>('');
   const [contestQuery, setContestQuery] = useState<string>('');
+  const [sequenceSearchText, setSequenceSearchText] = useState<string>('');
+  const [sequenceMode, setSequenceMode] = useState<'numbers' | 'sequence'>('numbers');
 
   const loadDraws = useCallback(async () => {
     setLoading(true);
@@ -112,6 +127,18 @@ export default function StatsPage() {
     () => analyzeSelectedNumbers(filteredDraws, selectedNumbers),
     [filteredDraws, selectedNumbers],
   );
+
+  const sequenceQueryNumbers = useMemo(() => parseNumbersFromInput(sequenceSearchText), [sequenceSearchText]);
+  const sequenceInputIsValid = useMemo(
+    () => (sequenceMode === 'numbers' ? true : isConsecutiveSequence(sequenceQueryNumbers)),
+    [sequenceMode, sequenceQueryNumbers],
+  );
+  const sequenceMatches = useMemo(() => {
+    if (!sequenceQueryNumbers.length || !sequenceInputIsValid) return [];
+    return filteredDraws
+      .filter((draw) => drawContainsNumbers(draw, sequenceQueryNumbers))
+      .sort((a, b) => b.concurso - a.concurso);
+  }, [filteredDraws, sequenceInputIsValid, sequenceQueryNumbers]);
 
   const contestNumber = Number(contestQuery);
   const contestResult = useMemo(() => {
@@ -520,6 +547,99 @@ export default function StatsPage() {
 
           {contestResult ? <ContestDetail draw={contestResult} /> : null}
         </div>
+      </section>
+
+      <section className="bg-surface-container border border-outline rounded-3xl p-8 shadow-sm space-y-5">
+        <h3 className="font-bold text-xl">Filtro por numero ou sequencia</h3>
+        <p className="text-sm text-on-surface-variant font-medium">
+          Digite 1 a 6 dezenas para listar todos os concursos que contem esses numeros.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            type="text"
+            value={sequenceSearchText}
+            onChange={(e) => setSequenceSearchText(e.target.value)}
+            placeholder="Ex.: 10 ou 05 06 07"
+            className="md:col-span-2 w-full rounded-xl border border-outline bg-white px-3 py-2 text-sm font-medium"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSequenceMode('numbers')}
+              className={cn(
+                'flex-1 rounded-xl border px-3 py-2 text-xs font-bold uppercase tracking-widest',
+                sequenceMode === 'numbers' ? 'bg-primary text-white border-primary' : 'bg-white text-on-surface-variant border-outline',
+              )}
+            >
+              Numeros
+            </button>
+            <button
+              onClick={() => setSequenceMode('sequence')}
+              className={cn(
+                'flex-1 rounded-xl border px-3 py-2 text-xs font-bold uppercase tracking-widest',
+                sequenceMode === 'sequence' ? 'bg-primary text-white border-primary' : 'bg-white text-on-surface-variant border-outline',
+              )}
+            >
+              Sequencia
+            </button>
+          </div>
+        </div>
+
+        {sequenceMode === 'sequence' && sequenceQueryNumbers.length > 1 && !sequenceInputIsValid ? (
+          <p className="text-sm font-medium text-error">
+            Para modo sequencia, informe dezenas consecutivas (ex.: 05 06 07).
+          </p>
+        ) : null}
+
+        <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+          {sequenceQueryNumbers.length
+            ? `${sequenceMatches.length} concursos encontrados na base filtrada`
+            : 'Digite as dezenas para buscar'}
+        </p>
+
+        {sequenceMatches.length ? (
+          <div className="max-h-[420px] overflow-auto rounded-2xl border border-outline/40">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-surface-container-high">
+                <tr className="text-left">
+                  <th className="px-3 py-2 font-bold uppercase tracking-widest text-[10px] text-on-surface-variant">Concurso</th>
+                  <th className="px-3 py-2 font-bold uppercase tracking-widest text-[10px] text-on-surface-variant">Data</th>
+                  <th className="px-3 py-2 font-bold uppercase tracking-widest text-[10px] text-on-surface-variant">Dezenas</th>
+                  <th className="px-3 py-2 font-bold uppercase tracking-widest text-[10px] text-on-surface-variant">Sena</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sequenceMatches.map((draw) => (
+                  <tr key={draw.id} className="border-t border-outline/20">
+                    <td className="px-3 py-2 font-bold text-on-surface">{draw.concurso}</td>
+                    <td className="px-3 py-2 text-on-surface-variant">{formatDate(draw.date)}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        {draw.numbers
+                          .slice()
+                          .sort((a, b) => a - b)
+                          .map((num) => (
+                            <span
+                              key={`${draw.id}-${num}`}
+                              className={cn(
+                                'inline-flex rounded-full px-2 py-0.5 text-xs font-extrabold',
+                                sequenceQueryNumbers.includes(num) ? 'bg-primary text-white' : 'bg-surface-dim text-on-surface',
+                              )}
+                            >
+                              {formatNumberBadge(num)}
+                            </span>
+                          ))}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-on-surface-variant">
+                      {draw.winners6 > 0 ? `${draw.winners6} ganhador(es)` : 'Acumulou'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </section>
     </div>
   );
