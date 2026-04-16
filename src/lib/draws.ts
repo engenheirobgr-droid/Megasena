@@ -132,16 +132,18 @@ function parseSheetRowsFromXml(sheetXml: string, sharedStrings: string[]): Recor
   rowNodes.forEach((rowNode, rowIndex) => {
     const cellNodes = rowNode.match(/<(?:x:)?c\b[\s\S]*?(?:\/>|<\/(?:x:)?c>)/g) || [];
     const columns = new Map<number, unknown>();
+    let fallbackColIndex = 0;
 
     for (const cell of cellNodes) {
       const refMatch = cell.match(/\br="([A-Z]+)\d+"/);
-      if (!refMatch) continue;
-      const colIndex = lettersToColumnIndex(refMatch[1]);
+      const colIndex = refMatch ? lettersToColumnIndex(refMatch[1]) : fallbackColIndex;
+      fallbackColIndex = colIndex + 1;
       const typeMatch = cell.match(/\bt="([^"]+)"/);
       const type = typeMatch?.[1] || '';
 
       const valueMatch = cell.match(/<(?:x:)?v>([\s\S]*?)<\/(?:x:)?v>/);
-      const rawValue = valueMatch?.[1] ?? '';
+      const inlineMatch = cell.match(/<(?:x:)?t(?:\s[^>]*)?>([\s\S]*?)<\/(?:x:)?t>/);
+      const rawValue = valueMatch?.[1] ?? inlineMatch?.[1] ?? '';
 
       let value: unknown = decodeXmlEntities(rawValue);
       if (type === 's') {
