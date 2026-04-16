@@ -1,10 +1,12 @@
 /**
- * Gera os 4 ícones PNG para o PWA Megasena usando apenas APIs nativas.
- * Requer: npm install canvas
+ * Gera os 4 ícones PNG para o PWA Megasena a partir de uma foto fonte.
+ * Requer: npm install canvas (já instalado)
  * Uso: node scripts/generate-icons.mjs
+ *
+ * Coloque a foto fonte em: public/icons/source.jpg (ou .png)
  */
-import { createCanvas } from 'canvas';
-import { writeFileSync, mkdirSync } from 'fs';
+import { createCanvas, loadImage } from 'canvas';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -13,41 +15,59 @@ const ICONS_DIR = resolve(__dirname, '../public/icons');
 
 mkdirSync(ICONS_DIR, { recursive: true });
 
-function drawIcon(size, maskable = false) {
+// Procura o arquivo fonte
+const POSSIBLE_SOURCES = [
+  resolve(ICONS_DIR, 'source.jpg'),
+  resolve(ICONS_DIR, 'source.jpeg'),
+  resolve(ICONS_DIR, 'source.png'),
+];
+
+const sourcePath = POSSIBLE_SOURCES.find(existsSync);
+
+if (!sourcePath) {
+  console.error('❌ Arquivo fonte não encontrado!');
+  console.error('   Coloque a foto em: public/icons/source.jpg');
+  process.exit(1);
+}
+
+console.log(`📷 Usando fonte: ${sourcePath}`);
+const sourceImage = await loadImage(sourcePath);
+
+/**
+ * Recorta um quadrado centralizado da imagem e redimensiona.
+ * Para foto de pessoa: foca na parte superior (rosto/torso).
+ */
+function drawPhotoIcon(size, maskable = false) {
   const canvas = createCanvas(size, size);
   const ctx = canvas.getContext('2d');
 
-  // Safe zone para maskable: 80% do total
+  const { width: sw, height: sh } = sourceImage;
+
+  // Recorte quadrado: pega a largura total e a mesma altura centralizada
+  // Para foto de retrato (vertical), foca na parte superior (pessoa)
+  const isPortrait = sh > sw;
+  let cropX, cropY, cropSize;
+
+  if (isPortrait) {
+    // Foto vertical: recorta quadrado do terço superior (onde fica a pessoa)
+    cropSize = sw;
+    cropX = 0;
+    // Começa em ~10% do topo para focar no rosto/torso
+    cropY = Math.max(0, sh * 0.05);
+    // Garante que não sai da imagem
+    if (cropY + cropSize > sh) cropY = sh - cropSize;
+  } else {
+    // Foto horizontal: recorta quadrado centralizado
+    cropSize = sh;
+    cropX = (sw - sh) / 2;
+    cropY = 0;
+  }
+
+  // Para ícone maskable: adiciona padding de 10% (safe zone)
   const pad = maskable ? size * 0.1 : 0;
+  const drawSize = size - pad * 2;
 
-  // Background
-  ctx.fillStyle = '#16a34a';
-  ctx.fillRect(0, 0, size, size);
-
-  // Bola (círculo branco)
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = (size / 2 - pad) * 0.55;
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = 'white';
-  ctx.fill();
-
-  // Sombra interna sutil
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-  ctx.lineWidth = size * 0.015;
-  ctx.stroke();
-
-  // Texto "MS"
-  const fontSize = r * 0.72;
-  ctx.fillStyle = '#16a34a';
-  ctx.font = `900 ${fontSize}px Arial, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('MS', cx, cy + fontSize * 0.05);
+  ctx.drawImage(sourceImage, cropX, cropY, cropSize, cropSize, pad, pad, drawSize, drawSize);
 
   return canvas.toBuffer('image/png');
 }
@@ -60,10 +80,11 @@ const configs = [
 ];
 
 for (const { name, size, maskable } of configs) {
-  const buf = drawIcon(size, maskable);
+  const buf = drawPhotoIcon(size, maskable);
   const outPath = resolve(ICONS_DIR, name);
   writeFileSync(outPath, buf);
-  console.log(`✅ Gerado: ${name} (${buf.length} bytes)`);
+  console.log(`✅ Gerado: ${name} (${(buf.length / 1024).toFixed(1)} KB)`);
 }
 
 console.log('\n🎉 Todos os ícones gerados em public/icons/');
+console.log('   Execute: npm run build:ghpages && git add -A && git commit -m "chore: atualiza icones PWA" && git push');
