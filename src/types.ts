@@ -5,8 +5,18 @@ export interface Draw {
   concurso: number;
   date: string;
   numbers: number[];
-  accumulated: boolean;
-  estimatedPrize: string;
+  winners6: number;
+  cityUf: string;
+  prize6: number;
+  winners5: number;
+  prize5: number;
+  winners4: number;
+  prize4: number;
+  accumulated6: number;
+  totalRevenue: number;
+  estimatedPrize: number;
+  megaDaViradaAccumulated: number;
+  observation: string;
 }
 
 export interface Session {

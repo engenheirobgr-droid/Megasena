@@ -11,11 +11,14 @@ import {
   Wallet, 
   Timer,
   Menu,
-  Loader2
+  Loader2,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import type { Page } from './types';
+import { useAuth } from './contexts/AuthContext';
 
 // Lazy load pages for better performance
 const StatsPage = lazy(() => import('./pages/Stats'));
@@ -35,6 +38,7 @@ const PageLoader = () => (
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('stats');
+  const { user, loading, firebaseReady, signInAnonymous, signOutUser } = useAuth();
 
   const navItems = [
     { id: 'stats', label: 'Stats', icon: BarChart3 },
@@ -106,17 +110,38 @@ export default function App() {
 
           <div className="flex items-center gap-4">
             <div className="hidden sm:block text-right">
-              <div className="text-sm font-bold">Alex Rivera</div>
-              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Premium Account</div>
+              <div className="text-sm font-bold">
+                {loading ? 'Carregando...' : user ? (user.isAnonymous ? 'Visitante Anônimo' : 'Usuário') : 'Visitante'}
+              </div>
+              <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+                {firebaseReady ? (user ? 'Sessão ativa' : 'Entrar sem cadastro') : 'Firebase não configurado'}
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white bg-surface-container shadow-lg">
-              <img 
-                src="https://picsum.photos/seed/analyst/100/100" 
-                alt="Profile" 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            </div>
+            {user?.photoURL ? (
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white bg-surface-container shadow-lg">
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || 'Perfil'}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            ) : (
+              <div className="w-10 h-10 rounded-full border-2 border-white bg-surface-container shadow-lg" />
+            )}
+            <button
+              onClick={user ? signOutUser : signInAnonymous}
+              disabled={!firebaseReady || loading}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest transition-all",
+                firebaseReady
+                  ? "bg-primary text-on-primary hover:opacity-90"
+                  : "bg-surface-dim text-on-surface-variant cursor-not-allowed"
+              )}
+            >
+              {user ? <LogOut className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
+              {user ? 'Sair' : 'Entrar Anônimo'}
+            </button>
           </div>
         </header>
 

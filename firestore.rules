@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAnonOrAuth() {
+      return request.auth != null;
+    }
+
+    match /draws/{drawId} {
+      allow read: if isAnonOrAuth();
+      allow write: if isAnonOrAuth();
+    }
+
+    match /imports/{importId} {
+      allow read: if isAnonOrAuth();
+      allow write: if isAnonOrAuth();
+    }
+
+    match /bets/{betId} {
+      allow read: if isAnonOrAuth();
+      allow write: if isAnonOrAuth();
+    }
+
+    match /simulations/{simulationId} {
+      allow read: if isAnonOrAuth();
+      allow write: if isAnonOrAuth();
+    }
+
+    match /settings/{docId} {
+      allow read: if isAnonOrAuth();
+      allow write: if isAnonOrAuth();
+    }
+  }
+}
+

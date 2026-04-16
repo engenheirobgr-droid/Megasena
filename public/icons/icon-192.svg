@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#16a34a" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="44" fill="url(#g)" />
+  <g fill="#fff" font-family="Arial, sans-serif" text-anchor="middle">
+    <text x="96" y="82" font-size="30" font-weight="700">MEGA</text>
+    <text x="96" y="124" font-size="56" font-weight="700">S</text>
+  </g>
+</svg>
+

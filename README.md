@@ -1,20 +1,63 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+﻿# Megasena App (PWA)
 
-# Run and deploy your AI Studio app
+App pessoal para Mega-Sena com foco em:
+- importacao de historico de concursos (XLSX)
+- analises estatisticas reais
+- gerenciamento de jogos
+- simuladores
 
-This contains everything you need to run your app locally.
+## Modo de uso
+Este projeto esta configurado para **single-user** (uso pessoal), sem multi-tenant.
 
-View your app in AI Studio: https://ai.studio/apps/58a9b256-1a44-44e6-8672-8375d1c22d43
+## Stack
+- React + Vite + TypeScript
+- Firebase (Auth anonimo, Firestore, Storage)
+- PWA (manifest + service worker)
 
-## Run Locally
+## Colecoes Firestore
+- `draws`: base historica dos concursos
+- `imports`: historico de importacoes XLSX
+- `bets`: jogos do usuario (proximas fases)
+- `simulations`: simulacoes (proximas fases)
+- `settings`: configuracoes do app (proximas fases)
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
+## Configuracao local
+1. Instale dependencias:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Crie `.env.local` a partir de `.env.example`.
+3. Preencha as variaveis Firebase do projeto `megasena-b32bf`.
+4. No Firebase Console, habilite `Authentication > Anonymous`.
+5. Rode:
    `npm run dev`
+
+## Regras Firestore (single-user)
+As regras estao em `firestore.rules` e permitem acesso para sessao autenticada (inclui anonimo).
+
+Para publicar regras e indexes:
+- `firebase deploy --only firestore:rules,firestore:indexes`
+
+## Deploy PWA (Firebase Hosting)
+1. Build:
+   `npm run build`
+2. Deploy:
+   `firebase deploy --only hosting`
+
+## Deploy via GitHub Pages
+1. Gere o build para subpasta do repositório:
+   `npm run build:ghpages`
+2. Publique o conteúdo da pasta `dist` no branch `gh-pages`.
+3. Em `Settings > Pages`, configure:
+   - Source: `Deploy from a branch`
+   - Branch: `gh-pages` / folder `/ (root)`
+
+### Deploy automatico (recomendado)
+- O workflow `.github/workflows/deploy.yml` publica automaticamente no branch `gh-pages` a cada push na `main`.
+- Mantenha no GitHub Pages:
+  - Source: `Deploy from a branch`
+  - Branch: `gh-pages` / folder `/ (root)`
+
+## Fase 2 entregue
+- [x] Importador XLSX para `draws`
+- [x] Dedupe por concurso
+- [x] Escrita em lote no Firestore
+- [x] Dashboard `Stats` com dados reais
