@@ -1,11 +1,15 @@
 // Detecta o base path dinamicamente a partir da localização do próprio SW
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
-const CACHE_NAME = 'megasena-cache-v3';
+const CACHE_NAME = 'megasena-cache-v4';
 
 const ASSETS = [
   BASE,
   BASE + 'index.html',
   BASE + 'manifest.webmanifest',
+  BASE + 'icons/icon-192.png',
+  BASE + 'icons/icon-512.png',
+  BASE + 'icons/icon-192-maskable.png',
+  BASE + 'icons/icon-512-maskable.png',
 ];
 
 self.addEventListener('install', (event) => {
