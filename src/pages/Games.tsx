@@ -2,7 +2,7 @@
 import { CheckCircle2, Plus, RefreshCcw, Trash2, WandSparkles } from 'lucide-react';
 import { createBet, fetchBets, removeBet, type BetRecord } from '../lib/bets';
 import { fetchAllDraws } from '../lib/draws';
-import { evaluateBetStatScore, generateBetByStatWeight } from '../lib/betScore';
+import { evaluateBetStatScore, generateBetByStatWeight, generateRandomBet } from '../lib/betScore';
 import type { Draw } from '../types';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,10 +17,13 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
-function randomBet() {
-  const picked = new Set<number>();
-  while (picked.size < 6) picked.add(Math.floor(Math.random() * 60) + 1);
-  return [...picked].sort((a, b) => a - b);
+function parseFixedNumbers(text: string): number[] {
+  const parsed = text
+    .split(/[^0-9]+/)
+    .map((token) => Number(token))
+    .filter((value) => Number.isInteger(value) && value >= 1 && value <= 60);
+
+  return [...new Set(parsed)].slice(0, 6).sort((a, b) => a - b);
 }
 
 function evaluateBet(numbers: number[], draws: Draw[]) {
@@ -50,6 +53,7 @@ export default function GamesPage() {
   const [draws, setDraws] = useState<Draw[]>([]);
   const [numbers, setNumbers] = useState<number[]>([1, 2, 3, 4, 5, 6]);
   const [note, setNote] = useState('');
+  const [fixedNumbersText, setFixedNumbersText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +93,7 @@ export default function GamesPage() {
   }, [bets, draws]);
 
   const candidateScore = useMemo(() => evaluateBetStatScore(numbers, draws), [numbers, draws]);
+  const fixedNumbers = useMemo(() => parseFixedNumbers(fixedNumbersText), [fixedNumbersText]);
 
   const handleNumberChange = (index: number, value: string) => {
     const parsed = Number(value);
@@ -122,9 +127,16 @@ export default function GamesPage() {
       return;
     }
 
-    const generated = generateBetByStatWeight(draws, 1500);
+    const generated = generateBetByStatWeight(draws, 1500, fixedNumbers);
     setNumbers(generated.numbers);
     setSuccess(`Jogo sugerido com score ${generated.score.total}/${generated.score.maxTotal}.`);
+    setError(null);
+  };
+
+  const handleGenerateRandom = () => {
+    const generated = generateRandomBet(fixedNumbers);
+    setNumbers(generated);
+    setSuccess(`Jogo aleatorio gerado${fixedNumbers.length ? ` com ${fixedNumbers.length} dezena(s) fixa(s)` : ''}.`);
     setError(null);
   };
 
@@ -176,7 +188,7 @@ export default function GamesPage() {
           <h3 className="text-xl font-bold">Novo Jogo</h3>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setNumbers(randomBet())}
+              onClick={handleGenerateRandom}
               className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest bg-primary-container text-primary"
             >
               <WandSparkles className="w-4 h-4" />
@@ -196,6 +208,20 @@ export default function GamesPage() {
           <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Score estatístico estimado</p>
           <p className="text-lg font-extrabold text-on-surface mt-1">
             {candidateScore.total}/{candidateScore.maxTotal}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Dezenas fixas (opcional)</p>
+          <input
+            type="text"
+            value={fixedNumbersText}
+            onChange={(e) => setFixedNumbersText(e.target.value)}
+            placeholder="Ex.: 07 23 59"
+            className="w-full rounded-xl border border-outline bg-white px-3 py-2 text-sm font-medium"
+          />
+          <p className="text-xs text-on-surface-variant mt-1">
+            Fixas detectadas: {fixedNumbers.length ? fixedNumbers.map(pad).join(' - ') : 'nenhuma'}
           </p>
         </div>
 

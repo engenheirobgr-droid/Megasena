@@ -61,6 +61,23 @@ function randomBet() {
   return [...picked].sort((a, b) => a - b);
 }
 
+function normalizeFixedNumbers(fixedNumbers: number[]): number[] {
+  return [...new Set(fixedNumbers)]
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n >= 1 && n <= 60)
+    .slice(0, 6)
+    .sort((a, b) => a - b);
+}
+
+function randomBetWithFixed(fixedNumbers: number[]): number[] {
+  const fixed = normalizeFixedNumbers(fixedNumbers);
+  if (fixed.length >= 6) return fixed.slice(0, 6);
+
+  const picked = new Set<number>(fixed);
+  while (picked.size < 6) picked.add(Math.floor(Math.random() * 60) + 1);
+  return [...picked].sort((a, b) => a - b);
+}
+
 function createScoreContext(draws: Draw[]): ScoreContext {
   const stats = buildMegaStats(draws);
   const highlightedSum = stats.sumDistribution.find((item) => item.highlight);
@@ -160,20 +177,24 @@ export function evaluateBetStatScore(numbers: number[], draws: Draw[]): BetStatS
   return scoreWithContext(numbers, context);
 }
 
-export function generateBetByStatWeight(draws: Draw[], maxAttempts = 3000) {
+export function generateRandomBet(fixedNumbers: number[] = []) {
+  return randomBetWithFixed(fixedNumbers);
+}
+
+export function generateBetByStatWeight(draws: Draw[], maxAttempts = 3000, fixedNumbers: number[] = []) {
   if (!draws.length) {
     return {
-      numbers: randomBet(),
+      numbers: randomBetWithFixed(fixedNumbers),
       score: { total: 0, maxTotal: 100, breakdown: [] as ScoreBreakdownItem[] },
     };
   }
 
   const context = createScoreContext(draws);
-  let bestNumbers = randomBet();
+  let bestNumbers = randomBetWithFixed(fixedNumbers);
   let bestScore = scoreWithContext(bestNumbers, context);
 
   for (let i = 0; i < maxAttempts; i += 1) {
-    const candidate = randomBet();
+    const candidate = randomBetWithFixed(fixedNumbers);
     const score = scoreWithContext(candidate, context);
     if (score.total > bestScore.total) {
       bestNumbers = candidate;

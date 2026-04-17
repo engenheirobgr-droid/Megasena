@@ -22,6 +22,7 @@ import { fetchAllDraws } from '../lib/draws';
 import type { Draw } from '../types';
 
 const BET_COST = 5;
+const FINANCE_SELECTED_BETS_KEY = 'megasena.finance.selectedBetIds';
 
 type DrawFinance = {
   draw: Draw;
@@ -101,6 +102,7 @@ function buildFinanceByDraw(draws: Draw[], bets: BetRecord[]) {
 export default function FinancePage() {
   const [bets, setBets] = useState<BetRecord[]>([]);
   const [draws, setDraws] = useState<Draw[]>([]);
+  const [selectedBetIds, setSelectedBetIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,7 +124,39 @@ export default function FinancePage() {
     load();
   }, []);
 
-  const financeByDraw = useMemo(() => buildFinanceByDraw(draws, bets), [draws, bets]);
+  useEffect(() => {
+    if (!bets.length) {
+      setSelectedBetIds([]);
+      return;
+    }
+
+    let nextSelected: string[] = [];
+    try {
+      const raw = window.localStorage.getItem(FINANCE_SELECTED_BETS_KEY);
+      if (raw) nextSelected = (JSON.parse(raw) as string[]) || [];
+    } catch {
+      nextSelected = [];
+    }
+
+    const validIds = new Set(bets.map((bet) => bet.id));
+    const filtered = nextSelected.filter((id) => validIds.has(id));
+    setSelectedBetIds(filtered.length ? filtered : bets.map((bet) => bet.id));
+  }, [bets]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FINANCE_SELECTED_BETS_KEY, JSON.stringify(selectedBetIds));
+    } catch {
+      // ignore localStorage persistence issues
+    }
+  }, [selectedBetIds]);
+
+  const activeBets = useMemo(
+    () => bets.filter((bet) => selectedBetIds.includes(bet.id)),
+    [bets, selectedBetIds],
+  );
+
+  const financeByDraw = useMemo(() => buildFinanceByDraw(draws, activeBets), [draws, activeBets]);
 
   const summary = useMemo(() => {
     const totalInvested = financeByDraw.reduce((acc, item) => acc + item.invested, 0);
@@ -180,7 +214,7 @@ export default function FinancePage() {
         <FinanceCard
           label="Total Investido"
           value={formatCurrency(summary.totalInvested)}
-          delta={`${bets.length} jogos ativos`}
+          delta={`${activeBets.length} jogos ativos`}
           icon={TrendingDown}
         />
         <FinanceCard
@@ -213,6 +247,52 @@ export default function FinancePage() {
             <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-1">Recalcular financeiro</p>
           </div>
         </button>
+      </section>
+
+      <section className="bg-surface-container border border-outline rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-lg font-bold text-on-surface">Jogos considerados no financeiro</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedBetIds(bets.map((bet) => bet.id))}
+              className="rounded-xl border border-outline px-3 py-1.5 text-xs font-bold uppercase tracking-widest bg-white text-on-surface-variant"
+            >
+              Marcar todos
+            </button>
+            <button
+              onClick={() => setSelectedBetIds([])}
+              className="rounded-xl border border-outline px-3 py-1.5 text-xs font-bold uppercase tracking-widest bg-white text-on-surface-variant"
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {bets.map((bet) => {
+            const selected = selectedBetIds.includes(bet.id);
+            return (
+              <button
+                key={bet.id}
+                onClick={() =>
+                  setSelectedBetIds((current) =>
+                    current.includes(bet.id) ? current.filter((id) => id !== bet.id) : [...current, bet.id],
+                  )
+                }
+                className={cn(
+                  'rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-all',
+                  selected
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white text-on-surface-variant border-outline',
+                )}
+                title={bet.note || ''}
+              >
+                {bet.numbers.map((n) => String(n).padStart(2, '0')).join('-')}
+              </button>
+            );
+          })}
+          {!bets.length ? <p className="text-sm text-on-surface-variant">Nenhum jogo cadastrado.</p> : null}
+        </div>
       </section>
 
       <section className="bg-surface-container border border-outline rounded-3xl p-6 shadow-sm space-y-4">
