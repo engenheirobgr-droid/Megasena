@@ -340,9 +340,11 @@ export default function StatsPage() {
             <motion.div
               key={`${num}-${idx}`}
               whileHover={{ scale: 1.08, y: -4 }}
-              className="w-12 h-12 sm:w-16 sm:h-16 md:w-24 md:h-24 bg-white/15 backdrop-blur-lg border border-white/20 rounded-2xl flex items-center justify-center shadow-xl"
+              className="w-12 h-12 sm:w-16 sm:h-16 md:w-24 md:h-24 flex items-center justify-center"
             >
-              <span className="font-extrabold text-xl sm:text-3xl md:text-4xl text-white">{String(num).padStart(2, '0')}</span>
+              <span className="inline-flex h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20 items-center justify-center rounded-full border-2 border-white/80 bg-white text-blue-700 font-extrabold text-xl sm:text-2xl md:text-3xl shadow-xl">
+                {String(num).padStart(2, '0')}
+              </span>
             </motion.div>
           ))}
         </div>
