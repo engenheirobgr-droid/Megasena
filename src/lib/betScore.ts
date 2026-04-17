@@ -15,6 +15,19 @@ export type BetStatScore = {
   breakdown: ScoreBreakdownItem[];
 };
 
+type ScoreContext = {
+  maxTotal: number;
+  parityPattern: { evens: number; odds: number };
+  highlightedSumRange: string;
+  highlightedSumMin: number | null;
+  highlightedSumMax: number | null;
+  pairKeys: Set<string>;
+  tripleKeys: Set<string>;
+  seqKeys: Set<string>;
+  heatFreqByNumber: Map<number, number>;
+  maxFreq: number;
+};
+
 function getCombinations(values: number[], size: number): number[][] {
   const result: number[][] = [];
   const sorted = [...values].sort((a, b) => a - b);
@@ -48,53 +61,61 @@ function randomBet() {
   return [...picked].sort((a, b) => a - b);
 }
 
-export function evaluateBetStatScore(numbers: number[], draws: Draw[]): BetStatScore {
+function createScoreContext(draws: Draw[]): ScoreContext {
   const stats = buildMegaStats(draws);
-  const maxTotal = 100;
+  const highlightedSum = stats.sumDistribution.find((item) => item.highlight);
+  const parsedRange = highlightedSum ? parseRange(highlightedSum.range) : null;
 
-  if (!draws.length || numbers.length !== 6) {
-    return { total: 0, maxTotal, breakdown: [] };
-  }
+  return {
+    maxTotal: 100,
+    parityPattern: stats.parityPattern,
+    highlightedSumRange: highlightedSum?.range || '-',
+    highlightedSumMin: parsedRange?.min ?? null,
+    highlightedSumMax: parsedRange?.max ?? null,
+    pairKeys: new Set(stats.topPairs.map((item) => item.combo.join('-'))),
+    tripleKeys: new Set(stats.topTriples.map((item) => item.combo.join('-'))),
+    seqKeys: new Set(stats.topConsecutivePairs.map((item) => item.combo.join('-'))),
+    heatFreqByNumber: new Map(stats.heatmap.map((item) => [item.num, item.frequency])),
+    maxFreq: Math.max(1, ...stats.heatmap.map((item) => item.frequency)),
+  };
+}
 
+function scoreWithContext(numbers: number[], context: ScoreContext): BetStatScore {
   const sortedNumbers = [...numbers].sort((a, b) => a - b);
   const numberSum = sortedNumbers.reduce((acc, num) => acc + num, 0);
   const evens = sortedNumbers.filter((n) => n % 2 === 0).length;
   const odds = 6 - evens;
 
-  const highlightedSumRange = stats.sumDistribution.find((item) => item.highlight);
-  const parsedRange = highlightedSumRange ? parseRange(highlightedSumRange.range) : null;
-  const sumInHotRange = parsedRange ? numberSum >= parsedRange.min && numberSum <= parsedRange.max : false;
-
-  const pairKeys = new Set(stats.topPairs.map((item) => item.combo.join('-')));
-  const tripleKeys = new Set(stats.topTriples.map((item) => item.combo.join('-')));
-  const seqKeys = new Set(stats.topConsecutivePairs.map((item) => item.combo.join('-')));
+  const sumInHotRange =
+    context.highlightedSumMin !== null &&
+    context.highlightedSumMax !== null &&
+    numberSum >= context.highlightedSumMin &&
+    numberSum <= context.highlightedSumMax;
 
   const betPairs = getCombinations(sortedNumbers, 2).map((combo) => combo.join('-'));
   const betTriples = getCombinations(sortedNumbers, 3).map((combo) => combo.join('-'));
 
-  const matchedPairs = betPairs.filter((key) => pairKeys.has(key)).length;
-  const matchedTriples = betTriples.filter((key) => tripleKeys.has(key)).length;
-  const matchedSeqPairs = betPairs.filter((key) => seqKeys.has(key)).length;
+  const matchedPairs = betPairs.filter((key) => context.pairKeys.has(key)).length;
+  const matchedTriples = betTriples.filter((key) => context.tripleKeys.has(key)).length;
+  const matchedSeqPairs = betPairs.filter((key) => context.seqKeys.has(key)).length;
 
-  const heatFreqByNumber = new Map(stats.heatmap.map((item) => [item.num, item.frequency]));
-  const maxFreq = Math.max(1, ...stats.heatmap.map((item) => item.frequency));
   const avgHeatRatio =
-    sortedNumbers.reduce((acc, num) => acc + (heatFreqByNumber.get(num) || 0) / maxFreq, 0) / sortedNumbers.length;
+    sortedNumbers.reduce((acc, num) => acc + (context.heatFreqByNumber.get(num) || 0) / context.maxFreq, 0) / sortedNumbers.length;
 
-  const parityExact = evens === stats.parityPattern.evens && odds === stats.parityPattern.odds;
-  const parityNear = Math.abs(evens - stats.parityPattern.evens) === 1;
+  const parityExact = evens === context.parityPattern.evens && odds === context.parityPattern.odds;
+  const parityNear = Math.abs(evens - context.parityPattern.evens) === 1;
 
   const breakdown: ScoreBreakdownItem[] = [
     {
       label: 'Paridade',
-      description: `Seu jogo: ${evens}P-${odds}I | Padrao mais recorrente: ${stats.parityPattern.evens}P-${stats.parityPattern.odds}I`,
+      description: `Seu jogo: ${evens}P-${odds}I | Padrao mais recorrente: ${context.parityPattern.evens}P-${context.parityPattern.odds}I`,
       points: parityExact ? 20 : parityNear ? 10 : 0,
       maxPoints: 20,
       matched: parityExact || parityNear,
     },
     {
       label: 'Faixa de soma',
-      description: `Soma do jogo: ${numberSum} | Faixa mais recorrente: ${highlightedSumRange?.range || '-'}`,
+      description: `Soma do jogo: ${numberSum} | Faixa mais recorrente: ${context.highlightedSumRange}`,
       points: sumInHotRange ? 20 : 0,
       maxPoints: 20,
       matched: sumInHotRange,
@@ -130,16 +151,30 @@ export function evaluateBetStatScore(numbers: number[], draws: Draw[]): BetStatS
   ];
 
   const total = breakdown.reduce((acc, item) => acc + item.points, 0);
-  return { total, maxTotal, breakdown };
+  return { total, maxTotal: context.maxTotal, breakdown };
+}
+
+export function evaluateBetStatScore(numbers: number[], draws: Draw[]): BetStatScore {
+  if (!draws.length || numbers.length !== 6) return { total: 0, maxTotal: 100, breakdown: [] };
+  const context = createScoreContext(draws);
+  return scoreWithContext(numbers, context);
 }
 
 export function generateBetByStatWeight(draws: Draw[], maxAttempts = 3000) {
+  if (!draws.length) {
+    return {
+      numbers: randomBet(),
+      score: { total: 0, maxTotal: 100, breakdown: [] as ScoreBreakdownItem[] },
+    };
+  }
+
+  const context = createScoreContext(draws);
   let bestNumbers = randomBet();
-  let bestScore = evaluateBetStatScore(bestNumbers, draws);
+  let bestScore = scoreWithContext(bestNumbers, context);
 
   for (let i = 0; i < maxAttempts; i += 1) {
     const candidate = randomBet();
-    const score = evaluateBetStatScore(candidate, draws);
+    const score = scoreWithContext(candidate, context);
     if (score.total > bestScore.total) {
       bestNumbers = candidate;
       bestScore = score;

@@ -122,7 +122,7 @@ export default function GamesPage() {
       return;
     }
 
-    const generated = generateBetByStatWeight(draws, 5000);
+    const generated = generateBetByStatWeight(draws, 1500);
     setNumbers(generated.numbers);
     setSuccess(`Jogo sugerido com score ${generated.score.total}/${generated.score.maxTotal}.`);
     setError(null);
