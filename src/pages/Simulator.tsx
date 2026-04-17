@@ -3,7 +3,6 @@ import {
   History,
   Play,
   Settings,
-  ChevronRight,
   Target,
   RefreshCcw,
 } from 'lucide-react';
@@ -482,10 +481,9 @@ export default function SimulatorPage() {
           </div>
         </div>
 
-        <button className="w-full py-5 bg-surface-dim border-t border-outline/30 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant flex items-center justify-center gap-2">
-          Simulador em tempo real
-          <ChevronRight className="w-4 h-4" />
-        </button>
+        <div className="w-full py-4 px-6 bg-surface-dim border-t border-outline/30 text-sm text-on-surface-variant">
+          Este bloco mostra o backtest historico do jogo selecionado. O antigo botao "simulador em tempo real" foi removido para evitar confusao.
+        </div>
       </section>
 
       <section className="bg-surface-container border border-outline rounded-3xl p-6 shadow-sm">

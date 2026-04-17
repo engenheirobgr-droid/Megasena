@@ -199,6 +199,17 @@ export default function GamesPage() {
           </p>
         </div>
 
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">Visual do jogo</p>
+          <div className="flex flex-wrap gap-2">
+            {numbers.map((num, index) => (
+              <span key={`${num}-${index}`}>
+                <WhiteBall value={num} />
+              </span>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {numbers.map((value, index) => (
             <label key={index} className="flex flex-col gap-1">
@@ -264,11 +275,11 @@ export default function GamesPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-6 gap-2">
+              <div className="flex flex-wrap gap-2">
                 {bet.numbers.map((num) => (
-                  <div key={num} className="aspect-square rounded-lg bg-surface-dim border border-outline flex items-center justify-center font-bold text-on-surface">
-                    {pad(num)}
-                  </div>
+                  <span key={num}>
+                    <WhiteBall value={num} />
+                  </span>
                 ))}
               </div>
 
@@ -313,5 +324,13 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
       <p className="text-sm font-bold text-on-surface mt-1">{value}</p>
     </div>
+  );
+}
+
+function WhiteBall({ value }: { value: number }) {
+  return (
+    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-800 font-extrabold shadow-sm">
+      {pad(value)}
+    </span>
   );
 }

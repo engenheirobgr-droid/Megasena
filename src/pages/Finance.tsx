@@ -215,6 +215,27 @@ export default function FinancePage() {
         </button>
       </section>
 
+      <section className="bg-surface-container border border-outline rounded-3xl p-6 shadow-sm space-y-4">
+        <h3 className="text-lg font-bold text-on-surface">Como ler o financeiro</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="rounded-xl border border-outline/50 bg-white px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Investido</p>
+            <p className="text-sm text-on-surface mt-1">Quantidade de jogos ativos x R$ 5,00 por concurso analisado.</p>
+          </div>
+          <div className="rounded-xl border border-outline/50 bg-white px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Premios</p>
+            <p className="text-sm text-on-surface mt-1">Soma dos premios (quadra, quina e sena) que seus jogos acertariam no historico.</p>
+          </div>
+          <div className="rounded-xl border border-outline/50 bg-white px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Saldo e ROI</p>
+            <p className="text-sm text-on-surface mt-1">Saldo = premios - investimento. ROI = saldo dividido pelo total investido.</p>
+          </div>
+        </div>
+        <p className="text-xs text-on-surface-variant font-medium">
+          Legenda das movimentacoes: Q = quadra, QN = quina, S = sena.
+        </p>
+      </section>
+
       <section className="bg-primary/5 border border-primary/10 rounded-3xl p-6 flex items-center gap-6">
         <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-outline">
           <AlertCircle className="w-6 h-6" />
