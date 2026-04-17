@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import {
   Award,
@@ -288,7 +288,7 @@ export default function StatsPage() {
           <label className="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">Filtro por faixa de acerto</label>
           <div className="flex flex-wrap gap-2">
             {([
-              { id: 'all', label: 'Todos' },
+              { id: 'all', label: 'Todos (inclui todos concursos)' },
               { id: '4', label: 'Com ganhador de quadra' },
               { id: '5', label: 'Com ganhador de quina' },
               { id: '6', label: 'Com ganhador de sena' },
@@ -369,12 +369,12 @@ export default function StatsPage() {
                 className={cn(
                   'aspect-square rounded-lg flex items-center justify-center text-xs font-bold transition-all hover:ring-2 hover:ring-primary/40 cursor-help',
                   item.intensity > 0.8
-                    ? 'bg-primary text-white shadow-md shadow-primary/20'
+                    ? 'bg-red-600 text-white shadow-md shadow-red-500/30'
                     : item.intensity > 0.55
-                      ? 'bg-primary-container text-primary'
+                      ? 'bg-red-300 text-red-900'
                       : item.intensity > 0.3
-                        ? 'bg-primary-container/40 text-on-surface-variant'
-                        : 'bg-surface-dim text-on-surface-variant/40 border border-outline/30',
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-surface-dim text-on-surface-variant/60 border border-outline/30',
                 )}
               >
                 {formatNumberBadge(item.num)}
@@ -388,14 +388,24 @@ export default function StatsPage() {
             icon={Flame}
             title="Mais frequente"
             subtitle="Quem mais aparece"
-            value={`Numero ${formatNumberBadge(stats.mostFrequent.number)} · ${stats.mostFrequent.count} vezes`}
+            value={
+              <span className="inline-flex items-center gap-2">
+                <WhiteBall number={stats.mostFrequent.number} />
+                <span>{stats.mostFrequent.count} vezes</span>
+              </span>
+            }
             color="primary"
           />
           <InsightCard
             icon={Snowflake}
             title="Mais ausente"
             subtitle="Sem sair ha mais"
-            value={`Numero ${formatNumberBadge(stats.mostAbsent.number)} · ${stats.mostAbsent.draws} concursos`}
+            value={
+              <span className="inline-flex items-center gap-2">
+                <WhiteBall number={stats.mostAbsent.number} />
+                <span>{stats.mostAbsent.draws} concursos</span>
+              </span>
+            }
             color="gray"
           />
           <InsightCard
@@ -703,7 +713,9 @@ function RankingCard({
         <div className="space-y-3">
           {items.map((item) => (
             <div key={item.number} className="flex items-center gap-3">
-              <span className="w-10 text-sm font-bold text-on-surface">{formatNumberBadge(item.number)}</span>
+              <div className="w-10 flex justify-center">
+                <WhiteBall number={item.number} small />
+              </div>
               <div className="flex-1 h-2.5 bg-surface-dim rounded-full overflow-hidden border border-outline/30">
                 <div className="h-full bg-primary" style={{ width: `${(item.count / maxValue) * 100}%` }} />
               </div>
@@ -806,7 +818,7 @@ function InsightCard({
   icon: ComponentType<{ className?: string }>;
   title: string;
   subtitle: string;
-  value: string;
+  value: ReactNode;
   color: 'primary' | 'gray' | 'light';
 }) {
   const colorMap = {
@@ -829,10 +841,23 @@ function InsightCard({
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{title}</p>
           <h4 className="font-manrope font-bold text-lg text-on-surface">{subtitle}</h4>
-          <p className="text-sm font-medium mt-1">{value}</p>
+          <div className="text-sm font-medium mt-1">{value}</div>
         </div>
       </div>
     </div>
+  );
+}
+
+function WhiteBall({ number, small = false }: { number: number; small?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center justify-center rounded-full border border-slate-300 bg-white text-slate-800 font-extrabold shadow-sm',
+        small ? 'h-7 w-7 text-[11px]' : 'h-8 w-8 text-xs',
+      )}
+    >
+      {formatNumberBadge(number)}
+    </span>
   );
 }
 

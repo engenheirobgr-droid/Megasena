@@ -52,7 +52,7 @@ export type StatsFilter = {
   windowSize: number | null;
   yearFrom: number | null;
   yearTo: number | null;
-  hitFilter: 'all' | '4' | '5' | '6';
+  hitFilter?: 'all' | '4' | '5' | '6';
 };
 
 function clampPercent(value: number): number {
@@ -173,13 +173,18 @@ function bestBy(draws: Draw[], picker: (draw: Draw) => number): RecordItem {
 
 export function applyStatsFilter(draws: Draw[], filter: StatsFilter): Draw[] {
   const ordered = [...draws].sort((a, b) => a.concurso - b.concurso);
+  const hitMode: 'all' | '4' | '5' | '6' =
+    filter.hitFilter === '4' || filter.hitFilter === '5' || filter.hitFilter === '6'
+      ? filter.hitFilter
+      : 'all';
+
   const byYearAndHits = ordered.filter((draw) => {
     const year = parseDrawYear(draw);
     if (filter.yearFrom && (!year || year < filter.yearFrom)) return false;
     if (filter.yearTo && (!year || year > filter.yearTo)) return false;
-    if (filter.hitFilter === '4' && draw.winners4 <= 0) return false;
-    if (filter.hitFilter === '5' && draw.winners5 <= 0) return false;
-    if (filter.hitFilter === '6' && draw.winners6 <= 0) return false;
+    if (hitMode === '4' && draw.winners4 <= 0) return false;
+    if (hitMode === '5' && draw.winners5 <= 0) return false;
+    if (hitMode === '6' && draw.winners6 <= 0) return false;
     return true;
   });
 
