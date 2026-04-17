@@ -2,6 +2,7 @@
 import { CheckCircle2, Plus, RefreshCcw, Trash2, WandSparkles } from 'lucide-react';
 import { createBet, fetchBets, removeBet, type BetRecord } from '../lib/bets';
 import { fetchAllDraws } from '../lib/draws';
+import { evaluateBetStatScore, generateBetByStatWeight } from '../lib/betScore';
 import type { Draw } from '../types';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -87,6 +88,8 @@ export default function GamesPage() {
     return { quadras, quinas, senas };
   }, [bets, draws]);
 
+  const candidateScore = useMemo(() => evaluateBetStatScore(numbers, draws), [numbers, draws]);
+
   const handleNumberChange = (index: number, value: string) => {
     const parsed = Number(value);
     setNumbers((current) => {
@@ -111,6 +114,18 @@ export default function GamesPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleGenerateWeighted = () => {
+    if (!draws.length) {
+      setError('Importe o historico antes de gerar jogo por peso estatistico.');
+      return;
+    }
+
+    const generated = generateBetByStatWeight(draws, 5000);
+    setNumbers(generated.numbers);
+    setSuccess(`Jogo sugerido com score ${generated.score.total}/${generated.score.maxTotal}.`);
+    setError(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -159,13 +174,29 @@ export default function GamesPage() {
       <section className="bg-surface-container border border-outline rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold">Novo Jogo</h3>
-          <button
-            onClick={() => setNumbers(randomBet())}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest bg-primary-container text-primary"
-          >
-            <WandSparkles className="w-4 h-4" />
-            Gerar Aleatório
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setNumbers(randomBet())}
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest bg-primary-container text-primary"
+            >
+              <WandSparkles className="w-4 h-4" />
+              Gerar Aleatório
+            </button>
+            <button
+              onClick={handleGenerateWeighted}
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest green-gradient-btn text-white"
+            >
+              <WandSparkles className="w-4 h-4" />
+              Gerar por Peso
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-outline/50 bg-surface-dim/50 px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Score estatístico estimado</p>
+          <p className="text-lg font-extrabold text-on-surface mt-1">
+            {candidateScore.total}/{candidateScore.maxTotal}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
