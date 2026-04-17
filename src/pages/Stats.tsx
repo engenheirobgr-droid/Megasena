@@ -81,6 +81,7 @@ export default function StatsPage() {
   const [windowOption, setWindowOption] = useState<WindowOption>('500');
   const [yearFrom, setYearFrom] = useState<string>('');
   const [yearTo, setYearTo] = useState<string>('');
+  const [hitFilter, setHitFilter] = useState<'all' | '4' | '5' | '6'>('all');
 
   const [selectedNumbersText, setSelectedNumbersText] = useState<string>('');
   const [contestQuery, setContestQuery] = useState<string>('');
@@ -115,8 +116,9 @@ export default function StatsPage() {
         windowSize: windowOptionToSize(windowOption),
         yearFrom: Number.isInteger(yearFromNumber) ? yearFromNumber : null,
         yearTo: Number.isInteger(yearToNumber) ? yearToNumber : null,
+        hitFilter,
       }),
-    [draws, windowOption, yearFromNumber, yearToNumber],
+    [draws, windowOption, yearFromNumber, yearToNumber, hitFilter],
   );
 
   const stats = useMemo(() => buildMegaStats(filteredDraws), [filteredDraws]);
@@ -279,6 +281,31 @@ export default function StatsPage() {
               onChange={(e) => setYearTo(e.target.value)}
               className="w-full rounded-xl border border-outline bg-white px-3 py-2 text-sm font-medium"
             />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">Filtro por faixa de acerto</label>
+          <div className="flex flex-wrap gap-2">
+            {([
+              { id: 'all', label: 'Todos' },
+              { id: '4', label: 'Com ganhador de quadra' },
+              { id: '5', label: 'Com ganhador de quina' },
+              { id: '6', label: 'Com ganhador de sena' },
+            ] as const).map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setHitFilter(item.id)}
+                className={cn(
+                  'rounded-xl border px-3 py-2 text-xs font-bold uppercase tracking-widest transition-all',
+                  hitFilter === item.id
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white text-on-surface-variant border-outline hover:border-primary/30 hover:text-primary',
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
 
