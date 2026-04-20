@@ -71,7 +71,8 @@ function drawContainsNumbers(draw: Draw, numbers: number[]): boolean {
 export default function StatsPage() {
   const { firebaseReady, authError } = useAuth();
   const [draws, setDraws] = useState<Draw[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -94,6 +95,7 @@ export default function StatsPage() {
     try {
       const data = await fetchAllDraws();
       setDraws(data);
+      setHasLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar concursos.');
     } finally {
@@ -101,9 +103,7 @@ export default function StatsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    loadDraws();
-  }, [loadDraws]);
+  // Dados carregados somente quando o usuario clicar em "Carregar dados" / "Atualizar dados"
 
   const globalStats = useMemo(() => buildMegaStats(draws), [draws]);
 
@@ -207,14 +207,19 @@ export default function StatsPage() {
             <button
               onClick={loadDraws}
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-bold uppercase tracking-widest bg-surface-dim text-on-surface-variant hover:bg-surface-container-highest border border-outline"
+              className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-bold uppercase tracking-widest bg-surface-dim text-on-surface-variant hover:bg-surface-container-highest border border-outline disabled:opacity-60"
             >
-              <RefreshCcw className="w-4 h-4" />
-              Atualizar
+              <RefreshCcw className={cn('w-4 h-4', loading && 'animate-spin')} />
+              {loading ? 'Atualizando...' : hasLoaded ? 'Atualizar dados' : 'Carregar dados'}
             </button>
           </div>
         </div>
 
+        {!hasLoaded && !loading && (
+          <p className="mt-4 text-sm font-medium text-on-surface-variant">
+            Clique em <span className="font-bold text-on-surface">Carregar dados</span> para buscar os concursos atualizados do Firebase.
+          </p>
+        )}
         {importSummary ? <p className="mt-4 text-sm font-medium text-primary">{importSummary}</p> : null}
         {!firebaseReady ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">

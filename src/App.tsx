@@ -15,11 +15,13 @@ import {
   LogIn,
   LogOut,
   Download,
+  RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import type { Page } from './types';
 import { useAuth } from './contexts/AuthContext';
+import { fetchLastSync, type LastSync } from './lib/draws';
 
 const StatsPage = lazy(() => import('./pages/Stats'));
 const GamesPage = lazy(() => import('./pages/Games'));
@@ -45,7 +47,13 @@ export default function App() {
   const [activePage, setActivePage] = useState<Page>('stats');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [lastSync, setLastSync] = useState<LastSync | null>(null);
   const { user, loading, firebaseReady, signInAnonymous, signOutUser } = useAuth();
+
+  useEffect(() => {
+    if (!firebaseReady) return;
+    fetchLastSync().then(setLastSync).catch(() => null);
+  }, [firebaseReady]);
 
   useEffect(() => {
     const standalone =
@@ -193,6 +201,26 @@ export default function App() {
             ) : null}
           </div>
         </header>
+
+        {lastSync && (
+          <div className="mx-6 mt-0 mb-2 flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container border border-outline-variant/30 text-xs text-on-surface-variant">
+            <RefreshCw className="w-3 h-3 shrink-0 text-primary" />
+            <span>
+              Firebase atualizado em{' '}
+              <span className="font-bold text-on-surface">
+                {new Intl.DateTimeFormat('pt-BR', {
+                  day: '2-digit', month: '2-digit', year: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
+                }).format(lastSync.date)}
+              </span>
+              {' · '}
+              {lastSync.processed.toLocaleString('pt-BR')} concursos
+              {lastSync.created > 0 && (
+                <span className="text-green-600 font-bold"> · +{lastSync.created} novos</span>
+              )}
+            </span>
+          </div>
+        )}
 
         <main className="flex-1 pb-32 overflow-x-hidden">
           <Suspense fallback={<PageLoader />}>

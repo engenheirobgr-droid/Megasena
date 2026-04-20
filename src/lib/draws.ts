@@ -3,6 +3,8 @@
   collection,
   doc,
   getDocs,
+  getDocsFromServer,
+  limit,
   orderBy,
   query,
   serverTimestamp,
@@ -277,7 +279,8 @@ export async function parseDrawsWorkbook(file: File): Promise<ParsedWorkbook> {
 export async function fetchAllDraws(): Promise<Draw[]> {
   if (!db) return readLocalDraws();
 
-  const snapshot = await getDocs(query(collection(db, 'draws'), orderBy('concurso', 'asc')));
+  // getDocsFromServer garante dados frescos do servidor, ignorando cache local
+  const snapshot = await getDocsFromServer(query(collection(db, 'draws'), orderBy('concurso', 'asc')));
   return snapshot.docs.map((item) => {
     const data = item.data() as Draw;
     return {
@@ -286,6 +289,34 @@ export async function fetchAllDraws(): Promise<Draw[]> {
       numbers: (data.numbers || []).map((n) => Number(n)).sort((a, b) => a - b),
     };
   });
+}
+
+export type LastSync = {
+  date: Date;
+  created: number;
+  updated: number;
+  processed: number;
+  fileName: string;
+};
+
+export async function fetchLastSync(): Promise<LastSync | null> {
+  if (!db) return null;
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, 'imports'), orderBy('createdAt', 'desc'), limit(1)),
+    );
+    if (snapshot.empty) return null;
+    const data = snapshot.docs[0].data();
+    return {
+      date: data.createdAt?.toDate?.() ?? new Date(),
+      created: data.created ?? 0,
+      updated: data.updated ?? 0,
+      processed: data.processed ?? 0,
+      fileName: data.fileName ?? '',
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function importDrawsWorkbook(file: File): Promise<ImportSummary> {
