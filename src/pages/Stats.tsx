@@ -103,7 +103,12 @@ export default function StatsPage() {
     }
   }, []);
 
-  // Dados carregados somente quando o usuario clicar em "Carregar dados" / "Atualizar dados"
+  // Carrega automaticamente quando o Firebase estiver pronto
+  useEffect(() => {
+    if (firebaseReady) {
+      loadDraws();
+    }
+  }, [firebaseReady, loadDraws]);
 
   const globalStats = useMemo(() => buildMegaStats(draws), [draws]);
 
@@ -210,16 +215,12 @@ export default function StatsPage() {
               className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-bold uppercase tracking-widest bg-surface-dim text-on-surface-variant hover:bg-surface-container-highest border border-outline disabled:opacity-60"
             >
               <RefreshCcw className={cn('w-4 h-4', loading && 'animate-spin')} />
-              {loading ? 'Atualizando...' : hasLoaded ? 'Atualizar dados' : 'Carregar dados'}
+              {loading ? 'Atualizando...' : 'Atualizar dados'}
             </button>
           </div>
         </div>
 
-        {!hasLoaded && !loading && (
-          <p className="mt-4 text-sm font-medium text-on-surface-variant">
-            Clique em <span className="font-bold text-on-surface">Carregar dados</span> para buscar os concursos atualizados do Firebase.
-          </p>
-        )}
+
         {importSummary ? <p className="mt-4 text-sm font-medium text-primary">{importSummary}</p> : null}
         {!firebaseReady ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
@@ -913,3 +914,4 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 }
 
 
+                                                                                                                                                                                                                                          
