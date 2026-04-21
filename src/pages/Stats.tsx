@@ -233,7 +233,11 @@ export default function StatsPage() {
           </div>
         </div>
 
-
+        {!hasLoaded && !loading && (
+          <p className="mt-4 text-sm font-medium text-on-surface-variant">
+            Clique em <span className="font-bold text-on-surface">Carregar dados</span> para buscar os concursos atualizados do Firebase.
+          </p>
+        )}
         {importSummary ? <p className="mt-4 text-sm font-medium text-primary">{importSummary}</p> : null}
         {!firebaseReady ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
@@ -917,4 +921,13 @@ function ContestDetail({ draw }: { draw: Draw }) {
   );
 }
 
-function DetailItem({ label, value }: { label: string; value: string
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
+      <p className="text-sm font-semibold text-on-surface mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+
