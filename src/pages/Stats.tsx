@@ -89,6 +89,24 @@ export default function StatsPage() {
   const [sequenceSearchText, setSequenceSearchText] = useState<string>('');
   const [sequenceMode, setSequenceMode] = useState<'numbers' | 'sequence'>('numbers');
 
+  const CACHE_KEY = 'megasena.stats.draws';
+
+  // Na montagem, restaura dados salvos no localStorage (sem bater no Firebase)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const cached: Draw[] = JSON.parse(raw);
+        if (cached.length > 0) {
+          setDraws(cached);
+          setHasLoaded(true);
+        }
+      }
+    } catch {
+      // cache corrompido — ignora
+    }
+  }, []);
+
   const loadDraws = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -96,19 +114,14 @@ export default function StatsPage() {
       const data = await fetchAllDraws();
       setDraws(data);
       setHasLoaded(true);
+      // Persiste no localStorage para sobreviver a recargas
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch { /* quota */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar concursos.');
     } finally {
       setLoading(false);
     }
   }, []);
-
-  // Carrega automaticamente quando o Firebase estiver pronto
-  useEffect(() => {
-    if (firebaseReady) {
-      loadDraws();
-    }
-  }, [firebaseReady, loadDraws]);
 
   const globalStats = useMemo(() => buildMegaStats(draws), [draws]);
 
@@ -215,7 +228,7 @@ export default function StatsPage() {
               className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-bold uppercase tracking-widest bg-surface-dim text-on-surface-variant hover:bg-surface-container-highest border border-outline disabled:opacity-60"
             >
               <RefreshCcw className={cn('w-4 h-4', loading && 'animate-spin')} />
-              {loading ? 'Atualizando...' : 'Atualizar dados'}
+              {loading ? 'Atualizando...' : hasLoaded ? 'Atualizar dados' : 'Carregar dados'}
             </button>
           </div>
         </div>
@@ -904,14 +917,4 @@ function ContestDetail({ draw }: { draw: Draw }) {
   );
 }
 
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
-      <p className="text-sm font-semibold text-on-surface mt-0.5">{value}</p>
-    </div>
-  );
-}
-
-
-                                                                                                                                                                                                                                          
+function DetailItem({ label, value }: { label: string; value: string
